@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+service Greeter {
+    rpc Chat(stream Message) returns (stream Message);
+}
+
+message Message {
+    string payload = 1;
+}

@@ -1,9 +1,49 @@
 syntax = "proto3";
 
-service Greeter {
-    rpc Chat(stream Message) returns (stream Message);
+service Hub {
+    rpc Connect(stream Message) returns (stream Message);
+
+    rpc PushTask(PushTaskRequest) returns (PushTaskResponse);
+}
+
+// ---- ---- ---- ---- Agents - Hub communication API ---- ---- ---- ---- //
+
+enum Rpc {
+    RPC_UNDEFINED = 0;
+    RPC_HELLO_AGENT = 1; // Agent
+    RPC_HEARTBEAT_AGENT = 2; // Agent
+    RPC_START_TASK = 3; // Hub
+    RPC_ABORT_TASK = 4; // Hub
+    RPC_UPDATE_TASK = 5; // Agent
+}
+
+message RequestMessage {
+    Rpc rpc = 1;
+    string payload = 3;
+}
+
+message ResponseMessage {
+    optional string payload = 2;
+    optional string error = 3;
 }
 
 message Message {
-    string payload = 1;
+    string reply_to = 1;
+    oneof message {
+        RequestMessage request = 2;
+        ResponseMessage response = 3;
+    }
+}
+
+// ---- ---- ---- ---- Hub internal communication API ---- ---- ---- ---- //
+
+message PushTaskRequest {
+    string agent_id = 1;
+    string method = 2;
+    string params = 3;
+    string payload = 4;
+}
+
+message PushTaskResponse {
+    optional string error = 1;
 }

@@ -1,1 +1,3 @@
-grpcio-tools
+grpcio-tools==1.64.0
+aiochannel
+pydantic

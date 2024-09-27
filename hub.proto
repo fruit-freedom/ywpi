@@ -10,7 +10,7 @@ service Hub {
 
 enum Rpc {
     RPC_UNDEFINED = 0;
-    RPC_HELLO_AGENT = 1; // Agent
+    RPC_REGISTER_AGENT = 1; // Agent
     RPC_HEARTBEAT_AGENT = 2; // Agent
     RPC_START_TASK = 3; // Hub
     RPC_ABORT_TASK = 4; // Hub

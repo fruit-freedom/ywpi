@@ -13,6 +13,9 @@ class logsy:
 # gRPC interface for production
 
 from typing import Annotated
+import types
+import dataclasses
+
 
 # import fastapi
 # app = fastapi.FastAPI()
@@ -47,6 +50,11 @@ TYPES_MAPPERS_DICT = {
     str: m
 }
 
+@dataclasses.dataclass
+class MethodDescription:
+    parameters: list[inspect.Parameter]
+    return_annotation: inspect.Parameter
+    bind_method: bool = True
 
 def service(cls):
     api_methods = {}
@@ -63,10 +71,22 @@ def service(cls):
         if hasattr(func, Spec.API_METHOD.value):
             signature = inspect.signature(func)
             print('API method parameters', list(signature.parameters.values()))
-            api_methods[func.__name__] = {
-                'parameters': list(signature.parameters.values()),
-                'return_annotation': signature.return_annotation
-            }
+
+            paramenters = list(signature.parameters.values())
+            bind_method = isinstance(func, types.FunctionType)
+            if bind_method:
+                paramenters.pop(0)
+
+            api_methods[func.__name__] = MethodDescription(
+                parameters=paramenters,
+                return_annotation=signature.return_annotation,
+                bind_method=bind_method
+            )
+
+            # api_methods[func.__name__] = {
+            #     'parameters': paramenters,
+            #     'return_annotation': signature.return_annotation
+            # }
 
     setattr(cls, Spec.CLASS_API_METHODS.value, api_methods)
     return cls
@@ -83,8 +103,11 @@ class Agent:
         self.counter = 0
 
     @api
-    def preprocessing(self):
-        pass
+    @staticmethod
+    def preprocessing(number: int):
+        import time
+        time.sleep(3)
+        print('YEEEEE WE RUN PREPROCSSING with', number)
 
     @api
     def predict(self, image_path: str, number: int) -> dict:
@@ -116,14 +139,19 @@ class ServiceController:
 
 
 
-instance = Agent()
+# instance = Agent()
 
-Agent.predict(instance, **{ 'image_path': 'path', 'number': 1 })
+# Agent.predict(instance, **{ 'image_path': 'path', 'number': 1 })
 
-methods = Agent.__dict__[Spec.CLASS_API_METHODS.value]
-print(methods)
+# methods = Agent.__dict__[Spec.CLASS_API_METHODS.value]
+# print(methods)
 
-Agent.__dict__['predict'](instance, **{ 'image_path': 'path', 'number': 1 })
+# Agent.__dict__['predict'](instance, **{ 'image_path': 'path', 'number': 1 })
+
+
+def launch_method(cls, method, args):
+    pass
+
 
 
 # Declare input parameters

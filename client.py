@@ -1,8 +1,12 @@
 import warnings
 warnings.simplefilter("ignore", UserWarning)
+
 import threading
 import time
 from concurrent import futures
+import inspect
+import dataclasses
+import typing
 import uuid
 
 import grpc
@@ -12,6 +16,9 @@ import hub_pb2
 import hub_pb2_grpc
 import models
 from logger import logger
+from ywpi.main import Spec, Agent, MethodDescription
+
+
 
 class Channel:
     def __init__(self):
@@ -38,30 +45,64 @@ class Channel:
             while not self.messages and self.running:
                 self.condition.wait()
             if not self.running:
-                print('Stop channel')
                 raise StopIteration()
             return self.messages.pop(0)
 
+# Service level
+class ServiceServer:
+    def __init__(self, agent_cls, exchanger: 'Exchanger' = None) -> None:
+        self.agent_cls = agent_cls
+        self.thread_pool = futures.ThreadPoolExecutor(max_workers=1)
 
-class TaskManager:
-    def __init__(self) -> None:
-        self.tasks = []
-    
-    def push_task():
-        thr = threading.Thread()
+        self.methods: list[models.Method] = []
+        self.calls: dict[str, typing.Callable] = {}
+        self.exchanger = exchanger
 
+        for name, description in self.agent_cls.__dict__[Spec.CLASS_API_METHODS.value].items():
+            description: MethodDescription
+            self.methods.append(models.Method(
+                name=name,
+                inputs=[
+                    models.InputDescription(name=param.name, type=ServiceServer.TYPE_TO_YWPI[param.annotation])
+                    for param in description.parameters
+                ]
+            ))
+            self.calls[name] = self.agent_cls.__dict__[name]
 
+    @staticmethod
+    def _method_wrapper(task_id: str, exchanger: 'Exchanger', method, **kwargs):
+        try:
+            method(**kwargs)
+        except BaseException as e:
+            import traceback
+            print(traceback.format_exc())
+            logger.warning('method raise exception')
+        finally:
+            exchanger.call_update_task(models.UpdateTaskRequest(task_id=task_id))
+
+    def call_method(self, exchanger: 'Exchanger', method: str, params: dict[str, typing.Any]):
+        self.thread_pool.submit(ServiceServer._method_wrapper, 'task-id-1', exchanger, self.calls[method], **params)
+
+    TYPE_TO_YWPI = {
+        int: 'number',
+        str: 'string'
+    }
+
+# Communication level
 class Exchanger:
-    def __init__(self, input_channel, agent_id = None) -> None:
+    def __init__(self, input_channel, output_channel: Channel, service: 'ServiceServer', agent_id = None) -> None:
         self.agent_id = agent_id
         self.incoming_requests: dict[str, futures.Future] = {}
         self.outgoings_requests: dict[str, futures.Future] = {}
 
         self.input_channel = input_channel
-        self.output_channel = Channel()
+        self.output_channel = output_channel
         self.thr = threading.Thread(target=self._reader)
         self.thr.start()
+        self.outgoings_requests_lock = threading.Lock()
+        self.service = service
 
+        self.finish = futures.Future()
 
     def _write_request_message(self, rpc: hub_pb2.Rpc, payload: str, reply_to: str):
         self.output_channel.push(
@@ -74,23 +115,46 @@ class Exchanger:
             )
         )
 
-    def _write_response_message(self, payload: str, reply_to: str):
+    def _write_response_message(
+            self,
+            reply_to: str,
+            payload: str | None = None,
+            error: str | None = 'undefined'
+        ):
+        args = { 'payload': payload } if payload else { 'error': error }
         self.output_channel.push(
             hub_pb2.Message(
                 reply_to=reply_to,
                 response=hub_pb2.ResponseMessage(
-                    payload=payload
+                    **args
                 )
             )
         )
 
-    def handle_request(self, request: hub_pb2.RequestMessage):
-        if request.rpc == hub_pb2.Rpc.RPC_START_TASK:
-            pass
-        elif request.rpc == hub_pb2.Rpc.RPC_ABORT_TASK:
-            logger.warning(f'Method {hub_pb2.Rpc.Name(request.rpc)} not implemented')
-        else:
-            logger.warning(f'Method {hub_pb2.Rpc.Name(request.rpc)} not implemented')
+    def _rpc_start_task(self, payload: models.StartTaskRequest) -> models.StartTaskResponse:
+        status = 'failed'
+        self.service.call_method(self, payload.method, payload.params)
+        return models.StartTaskResponse(status=status)
+
+    def _handle_request(self, reply_to: str, request: hub_pb2.RequestMessage):
+        try:
+            if request.rpc == hub_pb2.Rpc.RPC_START_TASK:
+                response = self._rpc_start_task(
+                    models.StartTaskRequest.model_validate_json(request.payload)
+                )
+                self._write_response_message(
+                    reply_to,
+                    response.model_dump_json(),
+                )
+            elif request.rpc == hub_pb2.Rpc.RPC_ABORT_TASK:
+                logger.warning(f'Method {hub_pb2.Rpc.Name(request.rpc)} not implemented')
+            else:
+                logger.warning(f'Method {hub_pb2.Rpc.Name(request.rpc)} not implemented')
+        except BaseException as e:
+            self._write_response_message(
+                reply_to,
+                error=str(e)
+            )
 
     def _reader(self):
         try:
@@ -101,50 +165,31 @@ class Exchanger:
 
                 if isinstance(attr, hub_pb2.ResponseMessage):
                     if message.reply_to in self.outgoings_requests:
-                        self.outgoings_requests.pop(message.reply_to).set_result()
+                        with self.outgoings_requests_lock:
+                            self.outgoings_requests.pop(message.reply_to).set_result(attr)
                     else:
                         logger.warning(f'[Agent={self.agent_id}] Recieved unexpected message {message.reply_to}')
                 elif isinstance(attr, hub_pb2.RequestMessage):
                     logger.info(f'[Agent={self.agent_id}] Recieve rpc "{hub_pb2.Rpc.Name(attr.rpc)}"')
-                    # Some work
-                    # time.sleep(2)
-                    self._write_response_message('{ "key": "client-response" }', message.reply_to)
-                    self.run_method()
+                    self._handle_request(message.reply_to, attr)
                 else:
                     logger.warning(f'Recieved unexpected message type {type(attr)}')
         finally:
-            self.output_channel.close()
+            self.finish.set_exception(Exception())
 
-    async def call(self, method: str, message: pydantic.BaseModel):
-        id = str(uuid.uuid4())
+    def call(self, rpc: hub_pb2.Rpc, payload: pydantic.BaseModel) -> futures.Future[hub_pb2.ResponseMessage]:
+        reply_to = str(uuid.uuid4())
         future = futures.Future()
-        self.outgoings_requests[id] = future
-        self._write_request_message(method, message, id)
+        with self.outgoings_requests_lock:
+            self.outgoings_requests[reply_to] = future
+        self._write_request_message(rpc, payload, reply_to)
         return future
 
-    def predict(self):
-        for i in range(2):
-            time.sleep(1)
-            self._write_request_message(hub_pb2.Rpc.RPC_UPDATE_TASK, '{}', reply_to='')
+    def call_register_agent(self, payload: models.RegisterAgentRequest):
+        return self.call(hub_pb2.Rpc.RPC_REGISTER_AGENT, payload.model_dump_json())
 
-    def run_method(self):
-        thr = threading.Thread(target=self.predict)
-        thr.start()
-
-    def set_start_task_callback(self, callback):
-        pass
-
-    def set_abort_task_callback(self, callback):
-        pass
-
-
-class Service:
-    def __init__(self, exchanger: Exchanger) -> None:
-        self.exchanger = exchanger
-        self.methods = []
-
-    def run_method():
-        pass
+    def call_update_task(self, payload: models.UpdateTaskRequest):
+        return self.call(hub_pb2.Rpc.RPC_UPDATE_TASK, payload.model_dump_json())
 
 import sys
 
@@ -154,29 +199,30 @@ def get_agent_id():
     return 'a-1'
 
 def chat():
+    service = ServiceServer(Agent)
     with grpc.insecure_channel('localhost:50051') as grpc_channel:
         greeter_stub = hub_pb2_grpc.HubStub(grpc_channel)
-        channel = Channel()
-        response_iterator = greeter_stub.Connect(iter(channel))
-
-        hello_message = models.HelloMessage(
-            id=get_agent_id(),
-            methods=['predict']
-        )
-        channel.push(
-            hub_pb2.Message(
-                reply_to='undefined',
-                request=hub_pb2.RequestMessage(
-                    rpc=hub_pb2.Rpc.RPC_HELLO_AGENT,
-                    payload=hello_message.model_dump_json()
-                )
-            )
-        )
+        output_channel = Channel()
+        response_iterator = greeter_stub.Connect(iter(output_channel))
         logger.info('Connected to hub localhost:50051')
 
-        exchanger = Exchanger(response_iterator)
-        for message in exchanger.output_channel:
-            channel.push(message)
-        channel.close()
+        hello_message = models.RegisterAgentRequest(
+            agent_id=get_agent_id(),
+            name='YoloService',
+            methods=service.methods
+        )
+
+        try:
+            exchanger = Exchanger(response_iterator, output_channel, service)
+            result = exchanger.call_register_agent(hello_message)
+            good = result.result()
+            if good.HasField('error'):
+                logger.error(f'Agent register failed: {good.error}')
+                raise Exception()
+
+            exchanger.finish.result()
+        finally:
+            output_channel.close()
+
 
 chat()

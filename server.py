@@ -32,15 +32,40 @@ def with_exception_logging(func):
             print(traceback.format_exc())
             raise e
     return decorated
+import typing
+
+
+class AgentProtocolError(Exception):
+    def __init__(self, *args: object) -> None:
+        super().__init__(*args)
+
+
+@dataclasses.dataclass
+class AgentDescription:
+    id: str
+    methods: list[models.Method]
+    exchanger: 'Exchanger'
+
+
+AGENTS: dict[str, 'Exchanger'] = { }
+
 
 class Exchanger:
     def __init__(self, input_channel) -> None:
-        self.incoming_requests: dict[str, asyncio.Future] = {}
-        self.outgoings_requests: dict[str, asyncio.Future] = {}
+        self._outgoings_requests: dict[str, asyncio.Future] = {}
 
-        self.input_channel = input_channel
+        self._input_channel = input_channel
         self.output_channel: aiochannel.Channel[hub_pb2.Message] = aiochannel.Channel()
-        self.reader_task = asyncio.create_task(self._reader())
+        self._reader_task = asyncio.create_task(self._reader())
+        self._agent_description: AgentDescription | None = None
+
+    @property
+    def agent_id(self):
+        return self._agent_description.id if self._agent_description else 'undefined'
+
+    async def close(self):
+        AGENTS.pop(self.agent_id, None)
+        self._reader_task.cancel()
 
     async def _write_request_message(self, rpc: hub_pb2.Rpc, payload: str, reply_to: str):
         self.output_channel.put_nowait(
@@ -53,99 +78,149 @@ class Exchanger:
             )
         )
 
-    async def _write_response_message(self, payload: str, reply_to: str):
+    async def _write_response_message(
+            self,
+            reply_to: str,
+            payload: str | None = None,
+            error: str | None = 'undefined'
+        ):
+        args = { 'payload': payload } if payload else { 'error': error }
         self.output_channel.put_nowait(
             hub_pb2.Message(
                 reply_to=reply_to,
                 response=hub_pb2.ResponseMessage(
-                    payload=payload
+                    **args
                 )
             )
         )
+        logger.debug(f'Write request message "{reply_to}"')
+
+    async def _handle_request(self, reply_to: str, request: hub_pb2.RequestMessage):
+        try:
+            if request.rpc == hub_pb2.Rpc.RPC_REGISTER_AGENT:
+                response = await self._rpc_register_agent(
+                    models.RegisterAgentRequest.model_validate_json(request.payload)
+                )
+            elif request.rpc == hub_pb2.Rpc.RPC_UPDATE_TASK:
+                response = await self._rpc_update_task(
+                    models.UpdateTaskRequest.model_validate_json(request.payload)
+                )
+            else:
+                raise NotImplementedError(f'rpc {hub_pb2.Rpc.Name(request.rpc)} not implemented')
+            
+            await self._write_response_message(reply_to=reply_to, payload=response.model_dump_json())
+        except BaseException as e:
+            logger.warning(f'handle rpc error: {e}')
+            await self._write_response_message(
+                reply_to=reply_to, error=str(e)
+            )
+
+    async def _handle_response(self, reply_to: str, response: hub_pb2.ResponseMessage):
+        if reply_to in self._outgoings_requests:
+            future = self._outgoings_requests.pop(reply_to)
+            if future.cancelled():
+                logger.warning(f'Recieve timeout response message {reply_to}')
+            else:
+                future.set_result(response)
+        else:
+            logger.warning(f'Recieve unexpected response message {reply_to}')
 
     @with_exception_logging
     async def _reader(self):
-        async for message in self.input_channel:
+        async for message in self._input_channel:
             # Bug in aiochannel pkg: `def __aiter__(self) -> "Channel":` no type
             message: hub_pb2.Message
             attr = message.__getattribute__(message.WhichOneof('message'))
+            logger.debug(f'Read message "{message.reply_to}"')
 
             if isinstance(attr, hub_pb2.ResponseMessage):
-                if message.reply_to in self.outgoings_requests:
-                    future = self.outgoings_requests.pop(message.reply_to)
-                    if future.cancelled():
-                        logger.warning(f'Recieve timeout response message {message.reply_to}')
-                    else:
-                        future.set_result(attr)
-                else:
-                    logger.warning(f'Recieve unexpected response message {message.reply_to}')
+                await self._handle_response(message.reply_to, attr)
             elif isinstance(attr, hub_pb2.RequestMessage):
                 logger.info(f'Recieve rpc "{hub_pb2.Rpc.Name(attr.rpc)}"')
-                # Some work
-                # await self._write_response_message('{ "key": "value" }', message.reply_to)
+                await self._handle_request(message.reply_to, attr)
             else:
                 logger.warning(f'Recieved unexpected message type {type(attr)}')
 
-    async def close(self):
-        self.reader_task.cancel()
-
-    async def call(self, rpc: hub_pb2.Rpc, payload: str) -> hub_pb2.ResponseMessage:
-        id = str(uuid.uuid4())
+    async def _call(self, rpc: hub_pb2.Rpc, payload: str) -> hub_pb2.ResponseMessage:
+        reply_to = str(uuid.uuid4())
         future = asyncio.Future()
-        self.outgoings_requests[id] = future
-        await self._write_request_message(rpc, payload, id)
+        self._outgoings_requests[reply_to] = future
+        await self._write_request_message(rpc, payload, reply_to)
         try:
             return await asyncio.wait_for(future, timeout=1.0)
         finally:
             pass
 
-@dataclasses.dataclass
-class AgentDescription:
-    id: str
-    methods: list[str]
-    exchanger: Exchanger
+    async def _rpc_register_agent(self, payload: models.RegisterAgentRequest) -> models.RegisterAgentResponse:
+        if self._agent_description is not None:
+            raise AgentProtocolError('Agent already registered')
+
+        if payload.agent_id in AGENTS:
+            raise AgentProtocolError(f'Agent with the same id "{payload.agent_id}" already registered')
+
+        self._agent_description = AgentDescription(
+            id=payload.agent_id,
+            methods=payload.methods,
+            exchanger=self
+        )
+        AGENTS[payload.agent_id] = self
+
+        logger.info(f'Register new agent {payload.name}[{payload.agent_id}] with methods: {payload.methods}')
+        return models.RegisterAgentResponse()
+
+    async def _rpc_update_task(self, payload: models.UpdateTaskRequest) -> models.UpdateTaskResponse:
+        if self._agent_description is None:
+            raise AgentProtocolError('Agent not registered')
+        return models.UpdateTaskResponse()
+
+    async def start_task(self, payload: models.StartTaskRequest) -> models.StartTaskResponse:
+        if self._agent_description is None:
+            raise AgentProtocolError('Agent not registered')
+        
+        response = await self._call(hub_pb2.Rpc.RPC_START_TASK, payload.model_dump_json())
+        if response.HasField('error'):
+            raise Exception(response.error)
+
+        return models.StartTaskResponse.model_validate_json(response.payload)
 
 
-AGENTS: dict[str, AgentDescription] = { }
 
+
+
+
+class Agent:
+    async def register_agent(self):
+        print('Register')
+
+    async def update_task(self):
+        pass
+
+    async def heartbeat(self):
+        pass
+
+    async def start_task(self):
+        pass
 
 
 class Hub(hub_pb2_grpc.HubServicer):
     async def Connect(self, request_iterator, context: grpc.ServicerContext):
-        try:
-            request: hub_pb2.Message = await anext(request_iterator)
-            message = request.__getattribute__(request.WhichOneof('message'))
-            assert isinstance(message, hub_pb2.RequestMessage)
-
-            payload = models.HelloMessage.model_validate_json(message.payload)
-
-            logger.info(f'Connected agent "{payload.id}" with methods {payload.methods}')
-            exchanger = Exchanger(request_iterator)
-            AGENTS[payload.id] = AgentDescription(id=payload.id, methods=payload.methods, exchanger=exchanger)
-        except:
-            print(traceback.format_exc())
-            logger.warning('Hello message failed')
-            return
-
+        exchanger = Exchanger(request_iterator)
         try:
             async for message in exchanger.output_channel:
                 yield message
         except:
-            await exchanger.close()
+            pass
         finally:
-            AGENTS.pop(payload.id)
-            logger.info(f'Disconected agent "{payload.id}"')
+            await exchanger.close()
+            logger.info(f'Disconected agent "{exchanger.agent_id}"')
 
     async def PushTask(self, request: hub_pb2.PushTaskRequest, context: grpc.ServicerContext):
         logger.info(f'Perform task creation for agent "{request.agent_id}"')
-        message = models.StartTaskMessage(
-            method=request.method,
-            params=json.loads(request.params),
-            payload=json.loads(request.payload)
-        )
         try:
-            response = await AGENTS[request.agent_id].exchanger.call(hub_pb2.RPC_START_TASK, '{ "key": "methods-payload" }')
-            print(response)
+            response = await AGENTS[request.agent_id].start_task(models.StartTaskRequest(
+                method=request.method,
+                params=json.loads(request.params)
+            ))
         except asyncio.TimeoutError as e:
             return hub_pb2.PushTaskResponse(error='Agent timeout error')
         except:

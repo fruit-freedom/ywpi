@@ -1,4 +1,5 @@
 import enum
+import typing
 
 import pydantic
 
@@ -18,8 +19,43 @@ class StartTaskMessage(pydantic.BaseModel):
     payload: dict = {}
 
 
-class HelloMessagePayload(pydantic.BaseModel):
+class InputDescription(pydantic.BaseModel):
+    name: str
+    type: str
+
+class Method(pydantic.BaseModel):
+    name: str
+    inputs: list[InputDescription]
+
+
+class RegisterAgentRequest(pydantic.BaseModel):
     agent_id: str
     name: str
-    methods: list[str]
+    methods: list[Method]
+
+class RegisterAgentResponse(pydantic.BaseModel):
+    pass
+
+
+class StartTaskRequest(pydantic.BaseModel):
+    method: str
+    params: dict[str, typing.Any] = { }
+
+class StartTaskResponse(pydantic.BaseModel):
+    status: str = 'success'
+
+
+class UpdateTaskRequest(pydantic.BaseModel):
+    task_id: str
+    status: str = 'undefined'
+
+class UpdateTaskResponse(pydantic.BaseModel):
+    pass
+
+
+
+
+
+
+
 

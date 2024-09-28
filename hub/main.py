@@ -2,26 +2,21 @@ import warnings
 warnings.simplefilter("ignore", UserWarning)
 
 import dataclasses
+import json
+import pydantic
+import typing
+import uuid
+import traceback
+import asyncio
 
 import grpc
-import json
-
-import traceback
+import aiochannel
 
 import hub_pb2_grpc
 import hub_pb2
-
-import time
-
 import models
-import aiochannel
-import uuid
-
-
-import pydantic
-import typing
 from logger import logger
-
+from hub.event_repository import repository as events
 
 
 def with_exception_logging(func):
@@ -32,7 +27,6 @@ def with_exception_logging(func):
             print(traceback.format_exc())
             raise e
     return decorated
-import typing
 
 
 class AgentProtocolError(Exception):
@@ -65,6 +59,7 @@ class Exchanger:
 
     async def close(self):
         AGENTS.pop(self.agent_id, None)
+        await events.produce_agent_disconnected(self.agent_id)
         self._reader_task.cancel()
 
     async def _write_request_message(self, rpc: hub_pb2.Rpc, payload: str, reply_to: str):
@@ -155,17 +150,19 @@ class Exchanger:
         if self._agent_description is not None:
             raise AgentProtocolError('Agent already registered')
 
-        if payload.agent_id in AGENTS:
-            raise AgentProtocolError(f'Agent with the same id "{payload.agent_id}" already registered')
+        if payload.id in AGENTS:
+            raise AgentProtocolError(f'Agent with the same id "{payload.id}" already registered')
 
         self._agent_description = AgentDescription(
-            id=payload.agent_id,
+            id=payload.id,
             methods=payload.methods,
             exchanger=self
         )
-        AGENTS[payload.agent_id] = self
+        AGENTS[payload.id] = self
+        await events.produce_agent_connected(payload.model_dump())
 
-        logger.info(f'Register new agent {payload.name}[{payload.agent_id}] with methods: {payload.methods}')
+        logger.info(f'Register new agent "{payload.id}" ("{payload.name}")')
+        logger.debug(f'Agent "{payload.id}" methods: {payload.methods}')
         return models.RegisterAgentResponse()
 
     async def _rpc_update_task(self, payload: models.UpdateTaskRequest) -> models.UpdateTaskResponse:
@@ -183,23 +180,6 @@ class Exchanger:
 
         return models.StartTaskResponse.model_validate_json(response.payload)
 
-
-
-
-
-
-class Agent:
-    async def register_agent(self):
-        print('Register')
-
-    async def update_task(self):
-        pass
-
-    async def heartbeat(self):
-        pass
-
-    async def start_task(self):
-        pass
 
 
 class Hub(hub_pb2_grpc.HubServicer):
@@ -234,12 +214,26 @@ async def main():
     server.add_insecure_port("[::]:50051")
     await server.start()
     logger.info('Started and listening on [::]:50051')
-    # while True:
-    #     await asyncio.sleep(1)
-    #     print('Check')
-    await server.wait_for_termination()
+
+    async def waiter_task():
+        try:
+            await server.wait_for_termination()
+        except:
+            logger.info(f'Stop server')
+    task = asyncio.create_task(waiter_task())
+
+    try:
+        await events.init()
+        await task
+    except BaseException:
+        await server.stop(0)
+    finally:
+        await task
+        await events.close()
 
 if __name__ == '__main__':
     import asyncio
-    asyncio.run(main())
-
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        pass

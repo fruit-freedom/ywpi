@@ -13,3 +13,8 @@ ywpi-hub
 Service has not any state, only runtime. For each changes it is simply send event in RQ.
 
 
+```bash
+python -m hub.main
+
+python -m ywpi.main
+```

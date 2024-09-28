@@ -1,16 +1,16 @@
 import enum
 import typing
+import datetime
 
 import pydantic
 
+# class MessageKind(enum.Enum):
+#     hellow_message = 'hellow_message'
+#     start_task_message = 'start_task_message'
 
-class MessageKind(enum.Enum):
-    hellow_message = 'hellow_message'
-    start_task_message = 'start_task_message'
-
-class HelloMessage(pydantic.BaseModel):
-    id: str
-    methods: list[str]
+# class HelloMessage(pydantic.BaseModel):
+#     id: str
+#     methods: list[str]
 
 
 class StartTaskMessage(pydantic.BaseModel):
@@ -29,7 +29,7 @@ class Method(pydantic.BaseModel):
 
 
 class RegisterAgentRequest(pydantic.BaseModel):
-    agent_id: str
+    id: str
     name: str
     methods: list[Method]
 
@@ -54,8 +54,15 @@ class UpdateTaskResponse(pydantic.BaseModel):
 
 
 
+# RabbitMQ Events models
 
+class EventType(enum.Enum):
+    AgentConnected = 'agent.connected'
+    AgentDisconnected = 'agent.disconnected'
+    TaskCreated = 'task.created'
+    TaskCompleted = 'task.completed'
 
-
-
-
+class Event(pydantic.BaseModel):
+    timestamp: datetime.datetime
+    type: EventType
+    instance: dict

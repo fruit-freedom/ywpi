@@ -2,17 +2,17 @@ import React, { useEffect, useState } from 'react'
 
 // import debounce from 'debounce'
 
-import Map from 'ol/Map.js'
+import Map from 'ol/Map'
 import { Tile, Vector, VectorImage } from 'ol/layer';
 import { XYZ, Vector as SourceVector, OSM } from 'ol/source';
 import View from 'ol/View';
 import GeoJSON from 'ol/format/GeoJSON';
 import { Style, Stroke, Fill, Circle } from 'ol/style';
 import { Modify, Draw, Snap, Select, defaults, DragPan, MouseWheelZoom } from 'ol/interaction'
-import MultiPoint from 'ol/geom/MultiPoint.js';
-import Projection from 'ol/proj/Projection.js';
-import VectorTileLayer from 'ol/layer/VectorTile.js';
-import VectorTileSource from 'ol/source/VectorTile.js';
+import MultiPoint from 'ol/geom/MultiPoint';
+import Projection from 'ol/proj/Projection';
+import VectorTileLayer from 'ol/layer/VectorTile';
+import VectorTileSource from 'ol/source/VectorTile';
 // import geojsonvt from 'geojson-vt';
 
 // import geoJSONObject from './geoJSONObject'

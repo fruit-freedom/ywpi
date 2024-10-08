@@ -8,6 +8,7 @@ import inspect
 import dataclasses
 import typing
 import uuid
+import inspect
 
 import grpc
 import pydantic
@@ -72,16 +73,21 @@ class ServiceServer:
     @staticmethod
     def _method_wrapper(task_id: str, exchanger: 'Exchanger', method, **kwargs):
         try:
-            method(**kwargs)
+            staticgenerator = isinstance(method, staticmethod) and inspect.isgeneratorfunction(method.__func__)
+            if inspect.isgeneratorfunction(method) or staticgenerator:
+                for outputs in method(**kwargs):
+                    exchanger.call_update_task(models.UpdateTaskRequest(id=task_id, outputs=outputs))
+            else:
+                method(**kwargs)
         except BaseException as e:
             import traceback
             print(traceback.format_exc())
             logger.warning('method raise exception')
         finally:
-            exchanger.call_update_task(models.UpdateTaskRequest(task_id=task_id))
+            exchanger.call_update_task(models.UpdateTaskRequest(id=task_id, status='completed'))
 
-    def call_method(self, exchanger: 'Exchanger', method: str, params: dict[str, typing.Any]):
-        self.thread_pool.submit(ServiceServer._method_wrapper, 'task-id-1', exchanger, self.calls[method], **params)
+    def call_method(self, exchanger: 'Exchanger', task_id: str, method: str, params: dict[str, typing.Any]):
+        self.thread_pool.submit(ServiceServer._method_wrapper, task_id, exchanger, self.calls[method], **params)
 
     TYPE_TO_YWPI = {
         int: 'number',
@@ -132,7 +138,7 @@ class Exchanger:
 
     def _rpc_start_task(self, payload: models.StartTaskRequest) -> models.StartTaskResponse:
         status = 'failed'
-        self.service.call_method(self, payload.method, payload.params)
+        self.service.call_method(self, payload.id, payload.method, payload.params)
         return models.StartTaskResponse(status=status)
 
     def _handle_request(self, reply_to: str, request: hub_pb2.RequestMessage):
@@ -232,17 +238,8 @@ def serve_class(cls):
 
 
 
-import ywpi
-
-@ywpi.service
-class Some:
-    @ywpi.api
-    def loaddata(self, filepath: str):
-        pass
-
-    @ywpi.api
-    def inference(self):
-        pass
 
 
-serve_class(Some)
+
+
+

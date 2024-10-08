@@ -70,7 +70,7 @@ def service(cls):
 
         if hasattr(func, Spec.API_METHOD.value):
             signature = inspect.signature(func)
-            print('API method parameters', list(signature.parameters.values()))
+            # print('API method parameters', list(signature.parameters.values()))
 
             paramenters = list(signature.parameters.values())
             bind_method = isinstance(func, types.FunctionType)
@@ -92,7 +92,7 @@ def api(func):
 
 
 
-@service
+# @service
 class Agent:
     def __init__(self) -> None:
         self.counter = 0

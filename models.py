@@ -38,6 +38,7 @@ class RegisterAgentResponse(pydantic.BaseModel):
 
 
 class StartTaskRequest(pydantic.BaseModel):
+    id: str
     method: str
     params: dict[str, typing.Any] = { }
 
@@ -46,8 +47,9 @@ class StartTaskResponse(pydantic.BaseModel):
 
 
 class UpdateTaskRequest(pydantic.BaseModel):
-    task_id: str
-    status: str = 'undefined'
+    id: str
+    status: str | None = None
+    outputs: dict | None = None
 
 class UpdateTaskResponse(pydantic.BaseModel):
     pass
@@ -60,6 +62,7 @@ class EventType(enum.Enum):
     AgentConnected = 'agent.connected'
     AgentDisconnected = 'agent.disconnected'
     TaskCreated = 'task.created'
+    TaskUpdated = 'task.updated'
     TaskCompleted = 'task.completed'
 
 class Event(pydantic.BaseModel):

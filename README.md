@@ -18,3 +18,11 @@ python -m hub.main
 
 python -m ywpi.main
 ```
+
+
+
+# Support various types of drives
+
+Declare its own `DriveHub` class.
+
+

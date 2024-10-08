@@ -16,8 +16,9 @@ import hub_pb2_grpc
 import hub_pb2
 import models
 from logger import logger
-from hub.event_repository import repository as events
-
+from hub.events_repository import repository as events
+from hub.agents_repository import repository as agents, AgentDescription
+from hub.tasks_respository import repository as tasks
 
 def with_exception_logging(func):
     async def decorated(*args, **kwargs):
@@ -33,17 +34,6 @@ class AgentProtocolError(Exception):
     def __init__(self, *args: object) -> None:
         super().__init__(*args)
 
-
-@dataclasses.dataclass
-class AgentDescription:
-    id: str
-    methods: list[models.Method]
-    exchanger: 'Exchanger'
-
-
-AGENTS: dict[str, 'Exchanger'] = { }
-
-
 class Exchanger:
     def __init__(self, input_channel) -> None:
         self._outgoings_requests: dict[str, asyncio.Future] = {}
@@ -58,8 +48,7 @@ class Exchanger:
         return self._agent_description.id if self._agent_description else 'undefined'
 
     async def close(self):
-        AGENTS.pop(self.agent_id, None)
-        await events.produce_agent_disconnected(self.agent_id)
+        await agents.remove(self.agent_id)
         self._reader_task.cancel()
 
     async def _write_request_message(self, rpc: hub_pb2.Rpc, payload: str, reply_to: str):
@@ -72,6 +61,7 @@ class Exchanger:
                 )
             )
         )
+        logger.debug(f'Write request message "{reply_to}"')
 
     async def _write_response_message(
             self,
@@ -88,7 +78,7 @@ class Exchanger:
                 )
             )
         )
-        logger.debug(f'Write request message "{reply_to}"')
+        logger.debug(f'Write response message "{reply_to}"')
 
     async def _handle_request(self, reply_to: str, request: hub_pb2.RequestMessage):
         try:
@@ -149,17 +139,7 @@ class Exchanger:
     async def _rpc_register_agent(self, payload: models.RegisterAgentRequest) -> models.RegisterAgentResponse:
         if self._agent_description is not None:
             raise AgentProtocolError('Agent already registered')
-
-        if payload.id in AGENTS:
-            raise AgentProtocolError(f'Agent with the same id "{payload.id}" already registered')
-
-        self._agent_description = AgentDescription(
-            id=payload.id,
-            methods=payload.methods,
-            exchanger=self
-        )
-        AGENTS[payload.id] = self
-        await events.produce_agent_connected(payload.model_dump())
+        self._agent_description = await agents.add(payload.id, payload.name, payload.methods, self)
 
         logger.info(f'Register new agent "{payload.id}" ("{payload.name}")')
         logger.debug(f'Agent "{payload.id}" methods: {payload.methods}')
@@ -168,12 +148,24 @@ class Exchanger:
     async def _rpc_update_task(self, payload: models.UpdateTaskRequest) -> models.UpdateTaskResponse:
         if self._agent_description is None:
             raise AgentProtocolError('Agent not registered')
+        # print({
+        #     'id': self.agent_id,
+        #     'tasks': [
+        #         payload.model_dump(exclude_none=True)
+        #     ]
+        # })
+
+        if payload.outputs is not None:
+            await tasks.update_outputs(payload.id, payload.outputs)
+        if payload.status is not None:
+            await tasks.update_status(payload.id, payload.status)
+
         return models.UpdateTaskResponse()
 
     async def start_task(self, payload: models.StartTaskRequest) -> models.StartTaskResponse:
         if self._agent_description is None:
             raise AgentProtocolError('Agent not registered')
-        
+
         response = await self._call(hub_pb2.Rpc.RPC_START_TASK, payload.model_dump_json())
         if response.HasField('error'):
             raise Exception(response.error)
@@ -197,7 +189,11 @@ class Hub(hub_pb2_grpc.HubServicer):
     async def PushTask(self, request: hub_pb2.PushTaskRequest, context: grpc.ServicerContext):
         logger.info(f'Perform task creation for agent "{request.agent_id}"')
         try:
-            response = await AGENTS[request.agent_id].start_task(models.StartTaskRequest(
+            agent = agents.get(request.agent_id)
+            task = await tasks.add(request.agent_id, request.method, json.loads(request.params))
+
+            response = await agent.connector.start_task(models.StartTaskRequest(
+                id=task.id,
                 method=request.method,
                 params=json.loads(request.params)
             ))
@@ -231,9 +227,12 @@ async def main():
         await task
         await events.close()
 
-if __name__ == '__main__':
+def runserver():
     import asyncio
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
         pass
+
+if __name__ == '__main__':
+    runserver()

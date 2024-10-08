@@ -17,16 +17,20 @@ def get_agent_id():
 with grpc.insecure_channel('localhost:50051') as channel:
     greeter_stub = hub_pb2_grpc.HubStub(channel)
 
-    method = 'preprocessing'
+    method = 'loaddata'
     params = {
-        "number": 1
+        "filepath": "image.jpg"
     }
+    agent_id = get_agent_id()
+
+    print(f'Request {method} with {params} to agent {agent_id}')
     response = greeter_stub.PushTask(
         hub_pb2.PushTaskRequest(
-            agent_id=get_agent_id(),
+            agent_id=agent_id,
             method=method,
             params=json.dumps(params),
             payload='{}'
         )
     )
     print(response)
+

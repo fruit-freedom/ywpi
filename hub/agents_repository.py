@@ -42,6 +42,9 @@ class AgentRepository:
     def get(self, id) -> AgentDescription:
         return self._agents[id]
 
+    def get_list(self) -> typing.Iterable[AgentDescription]:
+        return self._agents.values()
+
     async def remove(self, id: str):
         if id not in self._agents:
             logger.warning(f'[AR] agent {id} does not present in repository')

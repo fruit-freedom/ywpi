@@ -203,6 +203,22 @@ class Hub(hub_pb2_grpc.HubServicer):
             print(traceback.format_exc())
         return hub_pb2.PushTaskResponse()
 
+    async def GetAgentsList(self, request: hub_pb2.GetAgentsListRequest, context: grpc.ServicerContext):
+        result = []
+        for a in agents.get_list():
+            methods = []
+            for m in a.methods:
+                methods.append(hub_pb2.Method(
+                    name=m.name,
+                    inputs=[hub_pb2.Input(name=i.name, type=i.type) for i in m.inputs]
+                ))
+
+            result.append(hub_pb2.Agent(
+                id=a.id,
+                name=a.name,
+                methods=methods
+            ))
+        return hub_pb2.GetAgentsListResponse(agents=result)
 
 async def main():
     server = grpc.aio.server()

@@ -12,8 +12,10 @@ import {
     createBrowserRouter,
     RouterProvider,
     useNavigate,
-    useParams
+    useParams,
+    Outlet
 } from "react-router-dom";
+
 // import { JSONTree } from 'react-json-tree'
 
 // import OpenLayerTiffRender from './OpenLayerTiffRender';
@@ -21,7 +23,10 @@ import {
 // import { getCenter } from 'ol/extent';
 // import DocumentsPage from './DocumentsPage';
 // import MethodPage from './MethodPage';
-import Ws from './Ws';
+import AgentsPage from './AgentsPage';
+import { Box } from '@mui/material';
+import Header from './Header';
+import SideBar from './SideBar';
 
 // const TasksList = () => {
 //     const navigate = useNavigate();
@@ -224,10 +229,18 @@ import Ws from './Ws';
 //     )
 // };
 
-const Page = () => {
+
+
+function Layout() {
     return (
-        <h1>Hello</h1>
-    )
+        <>
+            <Header />
+            <Box display={'flex'} marginTop={'0.5em'}>
+                <SideBar />
+                <Outlet />
+            </Box>
+        </>
+    );
 }
 
 const router = createBrowserRouter([
@@ -248,9 +261,14 @@ const router = createBrowserRouter([
     //     element: <MethodPage />
     // },
     {
-        path: "*",
-        element: <Ws />
-    },
+        element: <Layout />,
+        children: [
+            {
+                path: "*",
+                element: <AgentsPage />
+            },
+        ]
+    }
 ]);
 
 

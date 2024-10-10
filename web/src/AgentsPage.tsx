@@ -1,7 +1,7 @@
 import { Typography, Box, Chip, Paper } from "@mui/material";
 import React, { useEffect, useState } from "react";
 
-
+import { useAgents } from "./store";
 
 enum EventType {
     AgentConnected = 'agent.connected',
@@ -40,7 +40,7 @@ interface AgentCardProps {
     agent: Agent;
 }
 
-const AgentCard = ({ agent }: AgentCardProps) => {
+export const AgentCard = ({ agent }: AgentCardProps) => {
     return (
         <Box width={'40em'}>
             <Paper sx={{ padding: '1em' }}>
@@ -63,10 +63,18 @@ export default () => {
     const [events, setEvents] = useState([]);
     const [connectionState, setconnectionState] = useState('disconnected');
 
-    const [agents, setAgents] = useState<Array<Agent>>([]);
+    // const [agents, setAgents] = useState<Array<Agent>>([]);
+
+    const { agents, addAgent, removeAgent, setAgents } = useAgents();
 
     useEffect(() => {
-        const socket = new WebSocket(`ws://localhost:8000/api/ws`);
+        fetch('/api/agents')
+        .then(e => e.json())
+        .then(agents => setAgents(agents))
+    }, []);
+
+    useEffect(() => {
+        const socket = new WebSocket(`ws://localhost:5011/api/ws`);
 
         socket.onopen = (e) => {
             setconnectionState('connected');
@@ -77,11 +85,11 @@ export default () => {
             const event = JSON.parse(e.data) as Event;
 
             if (event.type == EventType.AgentConnected) {
-                setAgents(prev => [...prev, event.instance as Agent]);
+                addAgent(event.instance as Agent);
             }
             else {
                 const agentId = (event.instance as AgentDisconnectedData).id;
-                setAgents(prev => prev.filter(agent => agent.id !== agentId));
+                removeAgent(agentId)
             }
         };
 
@@ -92,7 +100,7 @@ export default () => {
     }, []);
 
     return (
-        <Box>
+        <Box padding={'0 4em'}>
             <Typography variant="h4">Websocket events</Typography>
             <Typography variant="h4">Connection state: {connectionState}</Typography>
             <Box>

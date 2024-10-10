@@ -4,6 +4,7 @@ service Hub {
     rpc Connect(stream Message) returns (stream Message);
 
     rpc PushTask(PushTaskRequest) returns (PushTaskResponse);
+    rpc GetAgentsList(GetAgentsListRequest) returns (GetAgentsListResponse);
 }
 
 // ---- ---- ---- ---- Agents - Hub communication API ---- ---- ---- ---- //
@@ -46,4 +47,26 @@ message PushTaskRequest {
 
 message PushTaskResponse {
     optional string error = 1;
+}
+
+message GetAgentsListRequest { }
+
+message Input {
+    string name = 1;
+    string type = 2;
+}
+
+message Method {
+    string name = 1;
+    repeated Input inputs = 2;
+}
+
+message Agent {
+    string id = 1;
+    string name = 2;
+    repeated Method methods = 3;
+}
+
+message GetAgentsListResponse {
+    repeated Agent agents = 1;
 }

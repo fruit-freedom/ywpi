@@ -3,7 +3,7 @@ import time
 import ywpi
 
 @ywpi.service
-class Some:
+class UploadService:
     @ywpi.api
     @staticmethod
     def loaddata(filepath: str):
@@ -16,5 +16,5 @@ class Some:
         pass
 
 
-ywpi.serve_class(Some)
+ywpi.serve_class(UploadService)
 

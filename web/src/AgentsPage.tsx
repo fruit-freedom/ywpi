@@ -1,7 +1,9 @@
-import { Typography, Box, Chip, Paper } from "@mui/material";
+import { Typography, Box, Chip, Paper, SpeedDial } from "@mui/material";
 import React, { useEffect, useState } from "react";
 
-import { useAgents } from "./store";
+import { Agent, Method, useAgents } from "./store";
+import { ConnectionStateEnum, useEvents } from "./hooks";
+import StatusIndicator, { IndicatorColor } from "./components/StatusIndicator";
 
 enum EventType {
     AgentConnected = 'agent.connected',
@@ -14,22 +16,6 @@ interface Event {
     type: EventType;
     timestamp: string;
     instance: any;
-}
-
-interface Input {
-    name: string;
-    type: string;
-}
-
-interface Method {
-    name: string;
-    inputs: Input[];
-}
-
-interface Agent {
-    id: string;
-    name: string;
-    methods: Method[];
 }
 
 interface AgentDisconnectedData {
@@ -50,7 +36,35 @@ export const AgentCard = ({ agent }: AgentCardProps) => {
                 </Box>
                 <Box>
                     {
-                        agent.methods.map(e => <Typography fontStyle={'italic'}>{e.name}()</Typography>)
+                        agent.methods.map(e => <Typography key={e.name} fontStyle={'italic'}>{e.name}()</Typography>)
+                    }
+                </Box>
+            </Paper>
+        </Box>
+    );
+}
+
+interface AgentMethodCardProps {
+    method: Method;
+}
+
+const AgentMethodCard = ({ method }: AgentMethodCardProps) => {
+    return (
+        <Box width={'40em'}>
+            <Paper sx={{ padding: '1em' }}>
+                <Box display={'flex'} flexDirection={'column'}>
+                    <Typography fontWeight={600} variant="h3">{method.name}</Typography>
+                    <Typography color="grey" variant='body2'>Method provides ability to predict cars, trees and road.</Typography>
+                </Box>
+                <Typography mt={'1em'} fontWeight={600} variant="h5">Inputs</Typography>
+                <Box>
+                    {
+                        method.inputs.map(e => (
+                            <Box display={'flex'} gap={1} key={e.name}>
+                                <Typography fontWeight={600} variant='subtitle1'>{e.name}:</Typography>
+                                <Typography variant='subtitle1' fontStyle={'italic'}>{e.type}</Typography>
+                            </Box>
+                        ))
                     }
                 </Box>
             </Paper>
@@ -60,12 +74,8 @@ export const AgentCard = ({ agent }: AgentCardProps) => {
 
 
 export default () => {
-    const [events, setEvents] = useState([]);
-    const [connectionState, setconnectionState] = useState('disconnected');
-
-    // const [agents, setAgents] = useState<Array<Agent>>([]);
-
-    const { agents, addAgent, removeAgent, setAgents } = useAgents();
+    const { agents, addAgent, removeAgent, setAgents, activeAgentIndex, activeAgentMethodIndex } = useAgents();
+    const { connectionState } = useEvents();
 
     useEffect(() => {
         fetch('/api/agents')
@@ -73,50 +83,32 @@ export default () => {
         .then(agents => setAgents(agents))
     }, []);
 
-    useEffect(() => {
-        const socket = new WebSocket(`ws://localhost:5011/api/ws`);
-
-        socket.onopen = (e) => {
-            setconnectionState('connected');
-        };
-  
-        socket.onmessage = e => {
-            console.log(e)
-            const event = JSON.parse(e.data) as Event;
-
-            if (event.type == EventType.AgentConnected) {
-                addAgent(event.instance as Agent);
-            }
-            else {
-                const agentId = (event.instance as AgentDisconnectedData).id;
-                removeAgent(agentId)
-            }
-        };
-
-        socket.onclose = e => {
-            setconnectionState('disconnected');
-        };
-
-    }, []);
-
     return (
         <Box padding={'0 4em'}>
-            <Typography variant="h4">Websocket events</Typography>
-            <Typography variant="h4">Connection state: {connectionState}</Typography>
             <Box>
-            {/* {
-                events.map(e => (
-                    <Box key={e.timestamp}>
-                        {JSON.stringify(e)}
-                    </Box>
-                ))
-            } */}
-            {/* {
-                agents.map(e => <Chip label={e} />)
-            } */}
-            {
-                agents.map(e => <AgentCard agent={e} />)
-            }
+                {
+                    activeAgentIndex !== null ?
+                    (
+                        activeAgentMethodIndex !== null ?
+                        <AgentMethodCard method={agents[activeAgentIndex].methods[activeAgentMethodIndex]}/>
+                        :
+                        <AgentCard agent={agents[activeAgentIndex]}/>
+                    )
+                    : null
+                }
+            </Box>
+            <Box
+                display={'flex'}
+                alignItems={'center'}
+                gap={1}
+                sx={{
+                    position: 'fixed',
+                    bottom: '1em',
+                    right: '1em'
+                }}
+            >
+                Server connection
+                <StatusIndicator color={connectionState == ConnectionStateEnum.connected ? IndicatorColor.black : IndicatorColor.white} />
             </Box>
         </Box>
     );

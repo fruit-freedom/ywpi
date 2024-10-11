@@ -106,5 +106,8 @@ app = fastapi.FastAPI(lifespan=lifespan)
 app.include_router(router)
 
 
-if __name__ == '__main__':
+def main():
     uvicorn.run('server.main:app', port=5011, reload=True)
+
+if __name__ == '__main__':
+    main()

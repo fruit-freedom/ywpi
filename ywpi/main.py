@@ -217,7 +217,7 @@ def serve_class(cls):
 
         hello_message = models.RegisterAgentRequest(
             id=get_agent_id(),
-            name='YoloService',
+            name=cls.__name__,
             methods=service.methods
         )
 

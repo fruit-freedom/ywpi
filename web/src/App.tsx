@@ -27,6 +27,8 @@ import AgentsPage from './AgentsPage';
 import { Box } from '@mui/material';
 import Header from './Header';
 import SideBar from './SideBar';
+import MethodPage from './MethodPage';
+import MethodCard from './components/MethodCard/MethodCard';
 
 // const TasksList = () => {
 //     const navigate = useNavigate();
@@ -266,6 +268,10 @@ const router = createBrowserRouter([
             {
                 path: "*",
                 element: <AgentsPage />
+            },
+            {
+                path: "/m",
+                element: <MethodPage />
             },
         ]
     }

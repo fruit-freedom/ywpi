@@ -58,12 +58,14 @@ class TaskRepository:
             raise KeyError(f'Task "{id}" does no exists')
         
         if status in ('completed', 'failed', 'aborted'):
-            self._tasks.pop(id)
+            task = self._tasks.pop(id)
         else:
             self._tasks[id].status = status
+            task = self._tasks[id]
 
         await events.produce_event(models.EventType.TaskUpdated, {
             'id': id,
+            'agent_id': task.agent_id,
             'status': status
         })
 
@@ -75,6 +77,7 @@ class TaskRepository:
 
         await events.produce_event(models.EventType.TaskUpdated, {
             'id': id,
+            'agent_id': self._tasks[id].agent_id,
             'outputs': outputs
         })
 

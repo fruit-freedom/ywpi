@@ -197,11 +197,12 @@ class Hub(hub_pb2_grpc.HubServicer):
                 method=request.method,
                 params=json.loads(request.params)
             ))
+            return hub_pb2.PushTaskResponse(task_id=task.id)
         except asyncio.TimeoutError as e:
             return hub_pb2.PushTaskResponse(error='Agent timeout error')
         except:
             print(traceback.format_exc())
-        return hub_pb2.PushTaskResponse()
+            return hub_pb2.PushTaskResponse(error='Unknown agent error')
 
     async def GetAgentsList(self, request: hub_pb2.GetAgentsListRequest, context: grpc.ServicerContext):
         result = []

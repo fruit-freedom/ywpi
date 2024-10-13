@@ -31,8 +31,6 @@ async def websocket_endpoint(websocket: fastapi.WebSocket):
     async for message in channel:
         await websocket.send_json(message)
 
-
-
 class Input(pydantic.BaseModel):
     name: str
     type: str
@@ -66,6 +64,23 @@ async def get_agents():
         )
     return results
 
+class CreateTaskBody(pydantic.BaseModel):
+    agent_id: str
+    method: str
+    inputs: dict
+
+@router.post('/api/tasks')
+async def create_task(body: CreateTaskBody):
+    response: hub_pb2.PushTaskResponse = await hub_sub.PushTask(
+        hub_pb2.PushTaskRequest(
+            agent_id=body.agent_id,
+            method=body.method,
+            params=json.dumps(body.inputs),
+        )
+    )
+    return {
+        'task_id': response.task_id
+    }
 
 async def consumer_loop() -> None:
     print(f'Start consuming events from {RQ_CONNECTION_STRING} {RQ_EXCHANGE_NAME}')
@@ -107,7 +122,7 @@ app.include_router(router)
 
 
 def main():
-    uvicorn.run('server.main:app', port=5011, reload=True)
+    uvicorn.run('server.main:app', port=5011, reload=True, timeout_graceful_shutdown=0.5)
 
 if __name__ == '__main__':
     main()

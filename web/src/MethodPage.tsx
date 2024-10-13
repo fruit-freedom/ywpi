@@ -34,7 +34,7 @@ const fakeFiles = [
     // { name: "file1.txt" },
     // { name: "file1.txt" },
     // { name: "file1.txt" },
-]
+] as any
 
 const FilePicker = () => {
     const [files, setFiles] = useState(fakeFiles);
@@ -47,7 +47,7 @@ const FilePicker = () => {
     return (
         <Box>
             <Box>
-                <label for="file-upload" class="custom-file-upload">
+                <label for={"file-upload"} class="custom-file-upload">
                     <Typography
                         color={'white'}
                         variant='button'
@@ -73,7 +73,7 @@ const FilePicker = () => {
             </Box>
             <Box padding={'0.5em 0'}>
                 {
-                    files.map(f => (
+                    files.map((f: any) => (
                         <Chip variant="outlined" sx={{ borderRadius: '4px', margin: '0.4em 0.4em 0 0' }} label={f.name} />
                     ))
                 }
@@ -85,7 +85,6 @@ const FilePicker = () => {
 export default () => {
     return (
         <>
-        <Header />
         <Box padding={'1em 4em'}>
             <Paper elevation={3} sx={{ padding: '1em' }}>
                 <Box>

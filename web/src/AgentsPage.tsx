@@ -1,9 +1,17 @@
-import { Typography, Box, Chip, Paper, SpeedDial } from "@mui/material";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import {
+    Typography, Box, Chip, Paper,
+    SpeedDial, Button, Accordion,
+    AccordionSummary, AccordionDetails,
+    Divider, TextareaAutosize, TextField
+} from "@mui/material";
+import styled from "@mui/material/styles/styled";
+import ForwardOutlinedIcon from '@mui/icons-material/ForwardOutlined';
 
-import { Agent, Method, useAgents } from "./store";
+import { Agent, Method, Task, useAgents } from "./store";
 import { ConnectionStateEnum, useEvents } from "./hooks";
 import StatusIndicator, { IndicatorColor } from "./components/StatusIndicator";
+import MethodCard from "./components/MethodCard/MethodCard";
 
 enum EventType {
     AgentConnected = 'agent.connected',
@@ -28,7 +36,7 @@ interface AgentCardProps {
 
 export const AgentCard = ({ agent }: AgentCardProps) => {
     return (
-        <Box width={'40em'}>
+        <Box>
             <Paper sx={{ padding: '1em' }}>
                 <Box display={'flex'} >
                     <Typography fontWeight={600} variant="h6">{agent.name}</Typography>
@@ -44,57 +52,91 @@ export const AgentCard = ({ agent }: AgentCardProps) => {
     );
 }
 
-interface AgentMethodCardProps {
-    method: Method;
+interface TaskCardProps {
+    task: Task;
 }
 
-const AgentMethodCard = ({ method }: AgentMethodCardProps) => {
+const TaskCard = ({ task }: TaskCardProps) => {
     return (
-        <Box width={'40em'}>
-            <Paper sx={{ padding: '1em' }}>
-                <Box display={'flex'} flexDirection={'column'}>
-                    <Typography fontWeight={600} variant="h3">{method.name}</Typography>
-                    <Typography color="grey" variant='body2'>Method provides ability to predict cars, trees and road.</Typography>
+        <Accordion disableGutters>
+            <AccordionSummary>
+                <Box display={'flex'} alignItems={'center'} gap={'1em'}>
+                    <Typography fontWeight={600}>ID {task.id}</Typography>
+                    <Typography color='grey' variant='body2'>{task.status}</Typography>
                 </Box>
-                <Typography mt={'1em'} fontWeight={600} variant="h5">Inputs</Typography>
+            </AccordionSummary>
+            <AccordionDetails>
                 <Box>
+                    <Typography variant='subtitle1' fontWeight={800}>Inputs</Typography>
                     {
-                        method.inputs.map(e => (
-                            <Box display={'flex'} gap={1} key={e.name}>
-                                <Typography fontWeight={600} variant='subtitle1'>{e.name}:</Typography>
-                                <Typography variant='subtitle1' fontStyle={'italic'}>{e.type}</Typography>
+                        Object.entries(task.inputs).map((k) => (
+                            <Box key={k[0]} display={'flex'} gap={2}>
+                                <Typography fontWeight={600}>{k[0]}</Typography>
+                                <Typography>{k[1] as any}</Typography>
                             </Box>
                         ))
                     }
                 </Box>
-            </Paper>
-        </Box>
-    );
+                <Box>
+                    <Typography variant='subtitle1' fontWeight={800}>Outputs</Typography>
+                    {
+                        task.outputs ?
+                        Object.entries(task.outputs).map((k) => (
+                            <Box key={k[0]} display={'flex'} gap={2}>
+                                <Typography fontWeight={600}>{k[0]}</Typography>
+                                <Typography>{k[1] as any}</Typography>
+                            </Box>
+                        ))
+                        : null
+                    }
+                </Box>
+            </AccordionDetails>
+        </Accordion>
+
+    )
 }
 
-
 export default () => {
-    const { agents, addAgent, removeAgent, setAgents, activeAgentIndex, activeAgentMethodIndex } = useAgents();
+    const { agents, setAgents, activeAgentIndex, activeAgentMethodIndex } = useAgents();
     const { connectionState } = useEvents();
 
     useEffect(() => {
         fetch('/api/agents')
         .then(e => e.json())
-        .then(agents => setAgents(agents))
+        .then(agents => setAgents(agents.map((e: any) => ({ ...e, tasks: [] }))))
     }, []);
 
+    const tasks = useMemo(() => {
+        if (activeAgentIndex !== null) {
+            if (activeAgentMethodIndex !== null) {
+                const methodName = agents[activeAgentIndex].methods[activeAgentMethodIndex].name;
+                return agents[activeAgentIndex].tasks.filter(e => e.method === methodName);
+            }
+            return agents[activeAgentIndex].tasks;
+        }
+    }, [activeAgentIndex, activeAgentMethodIndex, agents]);
+
     return (
-        <Box padding={'0 4em'}>
+        <Box padding={'0 4em'} width={'50%'}>
             <Box>
                 {
                     activeAgentIndex !== null ?
                     (
                         activeAgentMethodIndex !== null ?
-                        <AgentMethodCard method={agents[activeAgentIndex].methods[activeAgentMethodIndex]}/>
+                        <MethodCard
+                            key={agents[activeAgentIndex].methods[activeAgentMethodIndex].name}
+                            agent={agents[activeAgentIndex]}
+                            method={agents[activeAgentIndex].methods[activeAgentMethodIndex]}
+                        />
                         :
                         <AgentCard agent={agents[activeAgentIndex]}/>
                     )
                     : null
+                }
+            </Box>
+            <Box mt={'2em'} display={'flex'} flexDirection={'column'} gap={'0.5em'}>
+                {
+                    tasks?.map(task => <TaskCard task={task} key={task.id}/>)
                 }
             </Box>
             <Box

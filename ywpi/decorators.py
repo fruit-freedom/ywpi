@@ -1,54 +1,14 @@
-# Migrate repo
-
-class Index:
-    pass
-
-class logsy:
-    class Image: pass
-    class GeoTIFF: pass
-    class GeoJSON: pass
-
-
-# REST API interface for develop
-# gRPC interface for production
-
+import inspect
 import typing
 import types
 import dataclasses
-
-
-# import fastapi
-# app = fastapi.FastAPI()
-
-
-
 import enum
+
+from .handle_args import get_input_dict, InputTyping
 
 class Spec(enum.Enum):
     API_METHOD = '__ywpi_api_method__'
     CLASS_API_METHODS = '__ywpi_class_api_methods__'
-
-
-import inspect
-import functools
-
-INSTANCES_DICT = { }
-
-class Image: pass
-
-
-TYPES_DICT = {
-    # Image: Annotated[fastapi.File, fastapi.Form()],
-    # str: fastapi.UploadFile
-    # str: int
-}
-
-def m(file: str):
-    return file.filename
-
-TYPES_MAPPERS_DICT = {
-    str: m
-}
 
 @dataclasses.dataclass
 class MethodDescription:
@@ -91,28 +51,18 @@ def api(func):
     return func
 
 
-REGISTERED_METHODS = {}
-
 @dataclasses.dataclass
 class RegisteredMethod:
     fn: typing.Callable
-    description: MethodDescription
+    inputs: dict[str, InputTyping]
+
+REGISTERED_METHODS: dict[str, RegisteredMethod] = {}
 
 def method(func):
-    signature = inspect.signature(func)
     # print('API method parameters', list(signature.parameters.values()))
+    inputs = get_input_dict(func)
+    REGISTERED_METHODS[func.__name__] = RegisteredMethod(fn=func, inputs=inputs)
 
-    paramenters = list(signature.parameters.values())
-    bind_method = isinstance(func, types.FunctionType)
-
-    REGISTERED_METHODS[func.__name__] = RegisteredMethod(
-        fn=func,
-        description=MethodDescription(
-            parameters=paramenters,
-            return_annotation=signature.return_annotation,
-            bind_method=bind_method
-        )
-    )
 
 # @service
 class Agent:
@@ -164,11 +114,6 @@ class ServiceController:
 # print(methods)
 
 # Agent.__dict__['predict'](instance, **{ 'image_path': 'path', 'number': 1 })
-
-
-def launch_method(cls, method, args):
-    pass
-
 
 
 # Declare input parameters

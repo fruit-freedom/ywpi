@@ -2,34 +2,15 @@ import dataclasses
 import typing as t
 import inspect
 
-
-import pydantic
-
-class Ref:
-    pass
-
-
-
-class RefModel(pydantic.BaseModel):
-    ywpi_drive: int
-    ref: int
-    type: str
-
-
-class ywpi:
-    class Text: pass
-    class Image: pass
-    class Ref: pass
-
-
+from ywpi import types as ytypes
 
 TYPE_NAMES = {
     str: 'str',
     int: 'int',
     float: 'float',
-    ywpi.Text: 'text',
+    ytypes.Text: 'text',
     bytes: 'bytes',
-    ywpi.Image: 'image'
+    ytypes.Image: 'image'
 }
 
 SERIALIZERS = {
@@ -42,21 +23,24 @@ def cvt_image(value):
     tp = value['type']
     if tp != 'image':
         raise TypeError('ref image')
-    return ywpi.Image()
+    return ytypes.Image()
 
 def cvt_ref(value):
     ref = value['ref']
-    return ywpi.Ref()
+    return ytypes.Ref()
 
 DESERIALIZERS = {
     str: lambda v: v,
     int: lambda v: int(v),
-    ywpi.Image: cvt_image,
+    float: lambda v: float(v),
+    ytypes.Image: cvt_image,
+    ytypes.Text: lambda v: str(v)
 }
 
 # (From Type, To Type) -> Converter
 TYPE_CONVERTERS = {
-    (ywpi.Image, bytes): lambda v: bytes('image-data', encoding='utf-8')
+    (ytypes.Image, bytes): lambda v: bytes('image-data', encoding='utf-8'),
+    (ytypes.Text, str): lambda v: str(v),
 }
 
 @dataclasses.dataclass
@@ -81,7 +65,7 @@ def get_input_dict(fn) -> dict[str, InputTyping]:
             source_tp = tp.__metadata__[0]
 
             if source_tp not in DESERIALIZERS:
-                raise KeyError(f'type {source_tp} has not got serializer')
+                raise KeyError(f'type {source_tp} has not got deserializer')
 
             if (source_tp, target_tp) not in TYPE_CONVERTERS:
                 raise TypeError(f'no avalible conversation from {source_tp} to {target_tp}')
@@ -103,7 +87,7 @@ def get_input_dict(fn) -> dict[str, InputTyping]:
                     optional=param.default is not inspect.Parameter.empty
                 )
             else:
-                raise KeyError(f'type {tp} has not got serializer')
+                raise KeyError(f'type {tp} has not got deserializer')
     return inputs_dict
 
 def handle_args(data, inputs: dict[str, InputTyping]):
@@ -123,34 +107,35 @@ def handle_args(data, inputs: dict[str, InputTyping]):
     return result_args
 
 
-# def fn(text: str, image: t.Annotated[bytes, ywpi.Image]): pass
-def fn(text: str, image: t.Annotated[bytes, ywpi.Image] = None):
-    pass
+# import ywpi
 
-# def fn(text: str, image: t.Annotated[bytes, ywpi.Image], thr: int = 1): pass
+# # def fn(text: str, image: t.Annotated[bytes, ywpi.Image]): pass
+# def fn(text: str, image: t.Annotated[bytes, ywpi.Image] = None): pass
+
+# # def fn(text: str, image: t.Annotated[bytes, ywpi.Image], thr: int = 1): pass
 
 
-inputs_dict = get_input_dict(fn)
-print(inputs_dict)
+# inputs_dict = get_input_dict(fn)
+# print(inputs_dict)
 
-res = handle_args(
-    {
-        'text': 'string',
-        # 'image': {
-        #     'ref': 46527,
-        #     'type': 'image',
-        #     'href': 'https://drive.ywpi.ru/o/46527'
-        # }
-    },
-    # {
-    #     'text': InputTyping(name='str', target_tp=str, source_tp=str),
-    #     'image': InputTyping(name='image', target_tp=bytes, source_tp=ywpi.Image)
-    # }
-    inputs_dict
-)
-print(res)
+# res = handle_args(
+#     {
+#         'text': 'string',
+#         'image': {
+#             'ref': 46527,
+#             'type': 'image',
+#             'href': 'https://drive.ywpi.ru/o/46527'
+#         }
+#     },
+#     # {
+#     #     'text': InputTyping(name='str', target_tp=str, source_tp=str),
+#     #     'image': InputTyping(name='image', target_tp=bytes, source_tp=ywpi.Image)
+#     # }
+#     inputs_dict
+# )
+# print(res)
 
-# print(type_hints['text'].__origin__, type_hints['text'].__metadata__, type_hints['text'])
-# print(t.get_origin(t.Annotated[str, ywpi.Text]) is t.Annotated)
+# # print(type_hints['text'].__origin__, type_hints['text'].__metadata__, type_hints['text'])
+# # print(t.get_origin(t.Annotated[str, ywpi.Text]) is t.Annotated)
 
 

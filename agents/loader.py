@@ -1,5 +1,6 @@
 import ywpi
 import time
+import typing as t
 
 @ywpi.method
 def load_from_dir(directory: str):
@@ -25,5 +26,10 @@ def a_lot_of_inputs(
     input_9: str,
 ):
     pass
+
+@ywpi.method
+def method_with_text(prompt: t.Annotated[str, ywpi.Text]):
+    pass
+
 
 ywpi.serve()

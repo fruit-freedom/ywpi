@@ -18,6 +18,7 @@ import hub_pb2_grpc
 import models
 from logger import logger
 from ywpi import Spec, Agent, MethodDescription, RegisteredMethod, REGISTERED_METHODS
+from ywpi.handle_args import handle_args, InputTyping
 
 
 
@@ -104,20 +105,29 @@ class SimplemethodExecuter:
 
         self.calls: dict[str, typing.Callable] = {}
         self.methods: list[models.Method] = []
+        self.method_input_dicts: dict[str, dict[str, InputTyping]] = {}
 
         for name, registered_method in registered_methods.items():
             self.methods.append(models.Method(
                 name=name,
                 inputs=[
-                    models.InputDescription(name=param.name, type=ServiceServer.TYPE_TO_YWPI[param.annotation])
-                    for param in registered_method.description.parameters
+                    models.InputDescription(name=input_name, type=input.name)
+                    for input_name, input in registered_method.inputs.items()
                 ]
             ))
             self.calls[name] = registered_method.fn
+            self.method_input_dicts[name] = registered_method.inputs
 
     @staticmethod
-    def _method_wrapper(task_id: str, exchanger: 'Exchanger', method, **kwargs):
+    def _method_wrapper(
+        task_id: str,
+        exchanger: 'Exchanger',
+        method,
+        inputs,
+        inputs_dict
+    ):
         try:
+            kwargs = handle_args(inputs, inputs_dict)
             staticgenerator = isinstance(method, staticmethod) and inspect.isgeneratorfunction(method.__func__)
             if inspect.isgeneratorfunction(method) or staticgenerator:
                 for outputs in method(**kwargs):
@@ -135,7 +145,14 @@ class SimplemethodExecuter:
 
     def call_method(self, exchanger: 'Exchanger', task_id: str, method: str, inputs: dict[str, typing.Any]):
         exchanger.call_update_task(models.UpdateTaskRequest(id=task_id, status='started'))
-        self.thread_pool.submit(SimplemethodExecuter._method_wrapper, task_id, exchanger, self.calls[method], **inputs)
+        self.thread_pool.submit(
+            SimplemethodExecuter._method_wrapper,
+            task_id,
+            exchanger,
+            self.calls[method],
+            inputs,
+            self.method_input_dicts[method]
+        )
 
 
 # Communication level

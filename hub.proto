@@ -7,6 +7,24 @@ service Hub {
     rpc GetAgentsList(GetAgentsListRequest) returns (GetAgentsListResponse);
 }
 
+/****************************************************
+
+Main concepts:
+- Pull-based agent communacation
+- Master (distributed due to fault tolerance) -> Wrokers (unstable services) model
+- gRPC transport
+- Fault tolerance scheduler
+
+
+Requirements:
+
+- Working with multiple same type workers
+- Dynamic worker append
+- Task cancellation
+- Task progress checking
+
+*****************************************************/
+
 // ---- ---- ---- ---- Agents - Hub communication API ---- ---- ---- ---- //
 
 enum Rpc {

@@ -235,13 +235,13 @@ import MethodCard from './components/MethodCard/MethodCard';
 
 function Layout() {
     return (
-        <>
+        <Box>
             <Header />
             <Box display={'flex'} marginTop={'0.5em'}>
                 <SideBar />
                 <Outlet />
             </Box>
-        </>
+        </Box>
     );
 }
 

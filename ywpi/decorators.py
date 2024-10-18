@@ -91,6 +91,28 @@ def api(func):
     return func
 
 
+REGISTERED_METHODS = {}
+
+@dataclasses.dataclass
+class RegisteredMethod:
+    fn: typing.Callable
+    description: MethodDescription
+
+def method(func):
+    signature = inspect.signature(func)
+    # print('API method parameters', list(signature.parameters.values()))
+
+    paramenters = list(signature.parameters.values())
+    bind_method = isinstance(func, types.FunctionType)
+
+    REGISTERED_METHODS[func.__name__] = RegisteredMethod(
+        fn=func,
+        description=MethodDescription(
+            parameters=paramenters,
+            return_annotation=signature.return_annotation,
+            bind_method=bind_method
+        )
+    )
 
 # @service
 class Agent:
@@ -132,47 +154,7 @@ class ServiceController:
         pass
 
 
-TO_YWPI_TYPES: dict[typing.Any, typing.Callable] = { }
-def to_ywpi_type(fn):
-    params = list(inspect.signature(fn).parameters.values())
-    assert len(params) == 1
-    tp = params[0].annotation
-    assert not issubclass(inspect.Parameter.empty, tp)
-    assert tp not in TO_YWPI_TYPES
-    TO_YWPI_TYPES[tp] = fn
-    return fn
 
-FROM_YWPI_TYPES: dict[typing.Any, typing.Callable] = { }
-def from_ywpi_type(fn):
-    tp = inspect.signature(fn).return_annotation
-    assert not issubclass(inspect.Parameter.empty, tp)
-    assert tp not in FROM_YWPI_TYPES
-    FROM_YWPI_TYPES[tp] = fn
-    return fn
-
-
-# JSON types string, number, object
-{
-    "ref": "",
-    "type": ""
-}
-
-@dataclasses.dataclass
-class Ref:
-    ref: str
-    type: str
-
-
-# To ywpi type
-@to_ywpi_type
-def type_cvt(value: int):
-    return value
-
-# From ywpi type
-@from_ywpi_type
-def cvt(value) -> int:
-    # Downlaod image by ref
-    return value
 
 # instance = Agent()
 

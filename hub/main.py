@@ -148,15 +148,10 @@ class Exchanger:
     async def _rpc_update_task(self, payload: models.UpdateTaskRequest) -> models.UpdateTaskResponse:
         if self._agent_description is None:
             raise AgentProtocolError('Agent not registered')
-        # print({
-        #     'id': self.agent_id,
-        #     'tasks': [
-        #         payload.model_dump(exclude_none=True)
-        #     ]
-        # })
 
         if payload.outputs is not None:
             await tasks.update_outputs(payload.id, payload.outputs)
+
         if payload.status is not None:
             await tasks.update_status(payload.id, payload.status)
 

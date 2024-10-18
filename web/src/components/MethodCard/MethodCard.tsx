@@ -94,12 +94,9 @@ const FileInput = ({ register, name }: InputProps) => {
 }
 
 const COMPONENTS = new Map([
-    // [ 'int', NumberInput ],
-    // [ 'str', StringInput ],
-
-    [ 'number', NumberInput ],
-    [ 'string', StringInput ],
-
+    [ 'int', NumberInput ],
+    [ 'float', NumberInput ],
+    [ 'str', StringInput ],
     [ 'text', TextInput ],
     [ 'file', FileInput ]
 ]);

@@ -17,7 +17,7 @@ import hub_pb2
 import hub_pb2_grpc
 import models
 from logger import logger
-from ywpi import Spec, Agent, MethodDescription
+from ywpi import Spec, Agent, MethodDescription, RegisteredMethod, REGISTERED_METHODS
 
 
 
@@ -79,20 +79,64 @@ class ServiceServer:
                     exchanger.call_update_task(models.UpdateTaskRequest(id=task_id, outputs=outputs))
             else:
                 method(**kwargs)
+                status = 'completed'
         except BaseException as e:
             import traceback
             print(traceback.format_exc())
             logger.warning('method raise exception')
+            status = 'failed'
         finally:
-            exchanger.call_update_task(models.UpdateTaskRequest(id=task_id, status='completed'))
+            exchanger.call_update_task(models.UpdateTaskRequest(id=task_id, status=status))
 
     def call_method(self, exchanger: 'Exchanger', task_id: str, method: str, params: dict[str, typing.Any]):
         self.thread_pool.submit(ServiceServer._method_wrapper, task_id, exchanger, self.calls[method], **params)
 
     TYPE_TO_YWPI = {
-        int: 'number',
-        str: 'string'
+        int: 'int',
+        str: 'str',
+        float: 'float'
     }
+
+
+class SimplemethodExecuter:
+    def __init__(self, registered_methods: dict[str, RegisteredMethod]) -> None:
+        self.thread_pool = futures.ThreadPoolExecutor(max_workers=1)
+
+        self.calls: dict[str, typing.Callable] = {}
+        self.methods: list[models.Method] = []
+
+        for name, registered_method in registered_methods.items():
+            self.methods.append(models.Method(
+                name=name,
+                inputs=[
+                    models.InputDescription(name=param.name, type=ServiceServer.TYPE_TO_YWPI[param.annotation])
+                    for param in registered_method.description.parameters
+                ]
+            ))
+            self.calls[name] = registered_method.fn
+
+    @staticmethod
+    def _method_wrapper(task_id: str, exchanger: 'Exchanger', method, **kwargs):
+        try:
+            staticgenerator = isinstance(method, staticmethod) and inspect.isgeneratorfunction(method.__func__)
+            if inspect.isgeneratorfunction(method) or staticgenerator:
+                for outputs in method(**kwargs):
+                    exchanger.call_update_task(models.UpdateTaskRequest(id=task_id, outputs=outputs))
+            else:
+                method(**kwargs)
+            status = 'completed'
+        except BaseException as e:
+            import traceback
+            print(traceback.format_exc())
+            logger.warning('method raise exception')
+            status = 'failed'
+        finally:
+            exchanger.call_update_task(models.UpdateTaskRequest(id=task_id, status=status))
+
+    def call_method(self, exchanger: 'Exchanger', task_id: str, method: str, inputs: dict[str, typing.Any]):
+        exchanger.call_update_task(models.UpdateTaskRequest(id=task_id, status='started'))
+        self.thread_pool.submit(SimplemethodExecuter._method_wrapper, task_id, exchanger, self.calls[method], **inputs)
+
 
 # Communication level
 class Exchanger:
@@ -237,6 +281,34 @@ def serve_class(cls):
             output_channel.close()
 
 
+
+def serve(name: str = 'Default name'):
+    service = SimplemethodExecuter(REGISTERED_METHODS)
+    with grpc.insecure_channel('localhost:50051') as grpc_channel:
+        greeter_stub = hub_pb2_grpc.HubStub(grpc_channel)
+        output_channel = Channel()
+        response_iterator = greeter_stub.Connect(iter(output_channel))
+
+        hello_message = models.RegisterAgentRequest(
+            id=get_agent_id(),
+            name=name,
+            methods=service.methods
+        )
+
+        try:
+            exchanger = Exchanger(response_iterator, output_channel, service)
+            result = exchanger.call_register_agent(hello_message)
+            good = result.result()
+            if good.HasField('error'):
+                logger.error(f'Agent register failed: {good.error}')
+                raise Exception()
+
+            logger.info('Connected to hub localhost:50051')
+            exchanger.finish.result()
+        except KeyboardInterrupt:
+            pass
+        finally:
+            output_channel.close()
 
 
 

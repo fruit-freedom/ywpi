@@ -1,8 +1,8 @@
 import typing
 import dataclasses
 import uuid
-from . import models
 from .events.repository import repository as events
+from .events import models as events_models
 
 @dataclasses.dataclass
 class TaskDescription:
@@ -30,7 +30,7 @@ class TaskRepository:
             raise KeyError('Task UUID duplicates...')
 
         self._tasks[id] = task
-        await events.produce_event(models.EventType.TaskCreated, {
+        await events.produce_event(events_models.EventType.TaskCreated, {
             'id': id,
             'agent_id': agent_id,
             'method': method,
@@ -50,7 +50,7 @@ class TaskRepository:
             self._tasks[id].status = status
             task = self._tasks[id]
 
-        await events.produce_event(models.EventType.TaskUpdated, {
+        await events.produce_event(events_models.EventType.TaskUpdated, {
             'id': id,
             'agent_id': task.agent_id,
             'status': status
@@ -62,7 +62,7 @@ class TaskRepository:
 
         self._tasks[id].outputs.update(outputs)
 
-        await events.produce_event(models.EventType.TaskUpdated, {
+        await events.produce_event(events_models.EventType.TaskUpdated, {
             'id': id,
             'agent_id': self._tasks[id].agent_id,
             'outputs': outputs

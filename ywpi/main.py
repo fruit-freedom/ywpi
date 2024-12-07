@@ -2,10 +2,9 @@ import warnings
 warnings.simplefilter("ignore", UserWarning)
 
 import threading
-import time
 from concurrent import futures
 import inspect
-import dataclasses
+import sys
 import typing
 import uuid
 import inspect
@@ -13,13 +12,13 @@ import inspect
 import grpc
 import pydantic
 
-import hub_pb2
-import hub_pb2_grpc
-import models
-from logger import logger
-from ywpi import Spec, Agent, MethodDescription, RegisteredMethod, REGISTERED_METHODS
+from . import hub_pb2
+from . import hub_pb2_grpc
+from . import models
+from .logger import logger
+from . import settings
+from ywpi import Spec, MethodDescription, RegisteredMethod, REGISTERED_METHODS
 from ywpi.handle_args import handle_args, InputTyping
-
 
 
 class Channel:
@@ -49,6 +48,7 @@ class Channel:
             if not self.running:
                 raise StopIteration()
             return self.messages.pop(0)
+
 
 # Service level
 class ServiceServer:
@@ -99,7 +99,7 @@ class ServiceServer:
     }
 
 
-class SimplemethodExecuter:
+class SimpleMethodExecuter:
     def __init__(self, registered_methods: dict[str, RegisteredMethod]) -> None:
         self.thread_pool = futures.ThreadPoolExecutor(max_workers=1)
 
@@ -113,7 +113,8 @@ class SimplemethodExecuter:
                 inputs=[
                     models.InputDescription(name=input_name, type=input.name)
                     for input_name, input in registered_method.inputs.items()
-                ]
+                ],
+                description=registered_method.description
             ))
             self.calls[name] = registered_method.fn
             self.method_input_dicts[name] = registered_method.inputs
@@ -146,7 +147,7 @@ class SimplemethodExecuter:
     def call_method(self, exchanger: 'Exchanger', task_id: str, method: str, inputs: dict[str, typing.Any]):
         exchanger.call_update_task(models.UpdateTaskRequest(id=task_id, status='started'))
         self.thread_pool.submit(
-            SimplemethodExecuter._method_wrapper,
+            SimpleMethodExecuter._method_wrapper,
             task_id,
             exchanger,
             self.calls[method],
@@ -262,16 +263,16 @@ class Exchanger:
     def call_update_task(self, payload: models.UpdateTaskRequest):
         return self.call(hub_pb2.Rpc.RPC_UPDATE_TASK, payload.model_dump_json())
 
-import sys
 
 def get_agent_id():
     if len(sys.argv) > 1:
         return sys.argv[1]
     return 'a-1'
 
+
 def serve_class(cls):
     service = ServiceServer(cls)
-    with grpc.insecure_channel('localhost:50051') as grpc_channel:
+    with grpc.insecure_channel(settings.YWPI_HUB_HOST) as grpc_channel:
         greeter_stub = hub_pb2_grpc.HubStub(grpc_channel)
         output_channel = Channel()
         response_iterator = greeter_stub.Connect(iter(output_channel))
@@ -299,17 +300,24 @@ def serve_class(cls):
 
 
 
-def serve(name: str = 'Default name'):
-    service = SimplemethodExecuter(REGISTERED_METHODS)
-    with grpc.insecure_channel('localhost:50051') as grpc_channel:
+def serve(
+    id: str = None,
+    name: str = 'Untitled',
+    description: str = 'No description provided',
+    project: str = settings.YWPI_PROJECT_NAME,
+):
+    service = SimpleMethodExecuter(REGISTERED_METHODS)
+    with grpc.insecure_channel(settings.YWPI_HUB_HOST) as grpc_channel:
         greeter_stub = hub_pb2_grpc.HubStub(grpc_channel)
         output_channel = Channel()
         response_iterator = greeter_stub.Connect(iter(output_channel))
 
         hello_message = models.RegisterAgentRequest(
-            id=get_agent_id(),
+            id=id if id is not None else get_agent_id(),
             name=name,
-            methods=service.methods
+            project=project,
+            description=description,
+            methods=service.methods,
         )
 
         try:
@@ -320,7 +328,7 @@ def serve(name: str = 'Default name'):
                 logger.error(f'Agent register failed: {good.error}')
                 raise Exception()
 
-            logger.info('Connected to hub localhost:50051')
+            logger.info(f'Connected to hub {settings.YWPI_HUB_HOST}')
             exchanger.finish.result()
         except KeyboardInterrupt:
             pass

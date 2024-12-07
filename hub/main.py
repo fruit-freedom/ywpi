@@ -14,11 +14,12 @@ import aiochannel
 
 import hub_pb2_grpc
 import hub_pb2
-import models
-from logger import logger
-from hub.events_repository import repository as events
+from . import models
+from .logger import logger
+from hub.events.repository import repository as events
 from hub.agents_repository import repository as agents, AgentDescription
 from hub.tasks_respository import repository as tasks
+
 
 def with_exception_logging(func):
     async def decorated(*args, **kwargs):
@@ -33,6 +34,7 @@ def with_exception_logging(func):
 class AgentProtocolError(Exception):
     def __init__(self, *args: object) -> None:
         super().__init__(*args)
+
 
 class Exchanger:
     def __init__(self, input_channel) -> None:
@@ -139,9 +141,10 @@ class Exchanger:
     async def _rpc_register_agent(self, payload: models.RegisterAgentRequest) -> models.RegisterAgentResponse:
         if self._agent_description is not None:
             raise AgentProtocolError('Agent already registered')
-        self._agent_description = await agents.add(payload.id, payload.name, payload.methods, self)
 
-        logger.info(f'Register new agent "{payload.id}" ("{payload.name}")')
+        self._agent_description = await agents.add(payload, self)
+
+        logger.info(f'Register new agent "{payload.id}" ({payload.project} / "{payload.name}")')
         logger.debug(f'Agent "{payload.id}" methods: {payload.methods}')
         return models.RegisterAgentResponse()
 
@@ -166,7 +169,6 @@ class Exchanger:
             raise Exception(response.error)
 
         return models.StartTaskResponse.model_validate_json(response.payload)
-
 
 
 class Hub(hub_pb2_grpc.HubServicer):
@@ -216,6 +218,7 @@ class Hub(hub_pb2_grpc.HubServicer):
             ))
         return hub_pb2.GetAgentsListResponse(agents=result)
 
+
 async def main():
     server = grpc.aio.server()
     hub_pb2_grpc.add_HubServicer_to_server(Hub(), server)
@@ -234,10 +237,12 @@ async def main():
         await events.init()
         await task
     except BaseException:
+        print(traceback.format_exc())
         await server.stop(0)
     finally:
         await task
         await events.close()
+
 
 def runserver():
     import asyncio

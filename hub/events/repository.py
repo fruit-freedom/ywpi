@@ -5,7 +5,7 @@ import datetime
 from aio_pika import Message, connect
 import aio_pika
 
-import models
+from . import models
 import settings
 
 logging.getLogger().setLevel(logging.INFO)
@@ -13,11 +13,13 @@ logging.getLogger().setLevel(logging.INFO)
 class AbstractEventsQueue:
     def __init__(self) -> None: pass
     async def init(self): pass
-    async def produce_event(self, type: models.EventType, instance: dict): pass
+    async def produce_event(self, type: models.EventType, data: dict): pass
     async def close(self): pass
+
 
 class MockEventsQueue(AbstractEventsQueue):
     pass
+
 
 class RabbitMQEventsQueue(AbstractEventsQueue):
     async def init(self):
@@ -29,11 +31,11 @@ class RabbitMQEventsQueue(AbstractEventsQueue):
         # Creating an exchange
         self.exchange = await channel.declare_exchange(settings.RQ_EXCHANGE_NAME, aio_pika.ExchangeType.TOPIC)
 
-    async def produce_event(self, type: models.EventType, instance: dict):
+    async def produce_event(self, type: models.EventType, data: dict):
         event_model = models.Event.model_validate({
             'timestamp': datetime.datetime.now(),
             'type': type,
-            'instance': instance
+            'data': data
         })
         await self.exchange.publish(
             Message(body=event_model.model_dump_json().encode()),
@@ -42,6 +44,7 @@ class RabbitMQEventsQueue(AbstractEventsQueue):
 
     async def close(self):
         await self.connection.close()
+
 
 class EventRepository(RabbitMQEventsQueue):
     async def produce_agent_connected(self, payload: dict):
@@ -52,6 +55,7 @@ class EventRepository(RabbitMQEventsQueue):
 
 
 repository = EventRepository()
+
 
 async def main():
     await repository.init()

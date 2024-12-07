@@ -8,10 +8,10 @@ import {
 import styled from "@mui/material/styles/styled";
 import ForwardOutlinedIcon from '@mui/icons-material/ForwardOutlined';
 
-import { Agent, Method, Task, useAgents } from "./store";
-import { ConnectionStateEnum, useEvents } from "./hooks";
-import StatusIndicator, { IndicatorColor } from "./components/StatusIndicator";
-import MethodCard from "./components/MethodCard/MethodCard";
+import { Agent, Method, Task, useAgents } from "../store/store";
+import { ConnectionStateEnum, useEvents } from "../hooks/useEvents";
+import StatusIndicator, { IndicatorColor } from "../components/StatusIndicator";
+import MethodCard from "../components/MethodCard/MethodCard";
 
 enum EventType {
     AgentConnected = 'agent.connected',
@@ -42,6 +42,7 @@ export const AgentCard = ({ agent }: AgentCardProps) => {
                     <Typography fontWeight={600} variant="h6">{agent.name}</Typography>
                     <Typography margin={'0 1em'} variant="h6">{agent.id}</Typography>
                 </Box>
+                <Typography>{agent.description}</Typography>
                 <Box>
                     {
                         agent.methods.map(e => <Typography key={e.name} fontStyle={'italic'}>{e.name}()</Typography>)
@@ -58,7 +59,7 @@ interface TaskCardProps {
 
 const TaskCard = ({ task }: TaskCardProps) => {
     return (
-        <Accordion disableGutters>
+        <Accordion disableGutters elevation={4}>
             <AccordionSummary>
                 <Box display={'flex'} alignItems={'center'} gap={'1em'}>
                     <Typography fontWeight={600}>ID {task.id}</Typography>
@@ -97,7 +98,7 @@ const TaskCard = ({ task }: TaskCardProps) => {
 }
 
 export default () => {
-    const { agents, setAgents, activeAgentIndex, activeAgentMethodIndex } = useAgents();
+    const { agents, setAgents, activeAgentIndex, activeAgentMethodIndex, setTasks } = useAgents();
     const { connectionState } = useEvents();
 
     useEffect(() => {
@@ -115,6 +116,14 @@ export default () => {
             return agents[activeAgentIndex].tasks;
         }
     }, [activeAgentIndex, activeAgentMethodIndex, agents]);
+
+    useEffect(() => {
+        if (activeAgentIndex !== null) {
+            fetch(`/api/tasks?agent_id=${agents[activeAgentIndex].id}`)
+            .then(e => e.json())
+            .then(tasks => setTasks(agents[activeAgentIndex].id, tasks));
+        }
+    }, [activeAgentIndex]);
 
     return (
         <Box padding={'0 4em'} width={'50%'}>
@@ -149,7 +158,7 @@ export default () => {
                     right: '1em'
                 }}
             >
-                Server connection
+                Server connection ({connectionState.toString()})
                 <StatusIndicator color={connectionState == ConnectionStateEnum.connected ? IndicatorColor.black : IndicatorColor.white} />
             </Box>
         </Box>

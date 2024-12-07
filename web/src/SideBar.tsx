@@ -1,11 +1,10 @@
 import React, { useEffect } from "react"
-import { Box, Paper, Typography, Accordion, AccordionDetails, AccordionSummary } from "@mui/material";
-import { useStore, create } from "zustand";
+import { Box, Typography, Accordion, AccordionDetails, AccordionSummary } from "@mui/material";
 
-import { useAgents, Agent } from "./store";
+import { useAgents } from "./store/store";
 import StatusIndicator from "./components/StatusIndicator";
-
-
+import { IndicatorColor } from "./components/StatusIndicator";
+import { AgentStatus } from "./hooks/useEvents";
 
 
 export default function () {
@@ -34,8 +33,10 @@ export default function () {
                             <AccordionSummary sx={{ '&:hover': { backgroundColor: '#efefef' } }}>
                                 <Box display={'flex'} justifyContent={'space-between'} alignItems={'center'}>
                                     <Box display={'flex'} alignItems={'center'} gap={1}>
-                                        <StatusIndicator />
-                                        <Typography fontWeight={'600'}>{agent.name}</Typography>
+                                        <StatusIndicator
+                                            color={ agent.status == AgentStatus.Connected ? IndicatorColor.black : IndicatorColor.white }
+                                        />
+                                        <Typography fontWeight={'600'}>{agent.project ? `${agent.project} / ` : ''}{agent.name}</Typography>
                                         <Typography variant="body2" color="grey" >{agent.id}</Typography>
                                     </Box>
                                 </Box>

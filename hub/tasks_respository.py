@@ -1,8 +1,8 @@
 import typing
 import dataclasses
 import uuid
-import models
-from .events_repository import repository as events
+from . import models
+from .events.repository import repository as events
 
 @dataclasses.dataclass
 class TaskDescription:
@@ -39,19 +39,6 @@ class TaskRepository:
         })
 
         return task
-        # Event Sourcing based on Agent Model
-        # events.produce_event(models.EventType.TaskCreated, {
-        #     'id': agent_id,
-        #     'tasks': [
-        #         {
-        #             'id': id,
-        #             'status': 'created',
-        #             'method': method,
-        #             'inputs': inputs
-        #         }
-        #     ]
-        # })
-
 
     async def update_status(self, id: str, status: str):        
         if id not in self._tasks:

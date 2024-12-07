@@ -3,7 +3,7 @@ import { Paper, TextField, Box, Typography, TextareaAutosize, Chip, Divider, But
 import styled from "@mui/material/styles/styled";
 import { useForm } from "react-hook-form";
 
-import { Agent, Method } from "../../store";
+import { Agent, Method } from "../../store/store";
 
 interface InputProps {
     name: string;
@@ -176,7 +176,7 @@ export default function MethodCard({ agent, method }: MethodCardProps) {
         <Paper sx={{ padding: '1em', display: 'flex', flexDirection: 'column', gap: '1.5em' }} elevation={4}>
             <Box display={'flex'} flexDirection={'column'}>
                 <Typography fontWeight={600} variant="h3">{method.name}</Typography>
-                <Typography color="grey" variant='body2'>Method provides ability to predict cars, trees and road.</Typography>
+                <Typography color="grey" variant='body2'>{method.description}</Typography>
                 <Divider/>
             </Box>
             <Box>
@@ -198,9 +198,8 @@ export default function MethodCard({ agent, method }: MethodCardProps) {
                             </Box>
                         ))
                     }
-                    </Box>
-                    <p>{data}</p>
                     <StartButton type='submit'>Start</StartButton>
+                    </Box>
                 </form>
             </Box>
         </Paper>

@@ -3,4 +3,3 @@ aiochannel
 pydantic
 aio_pika
 fastapi[uvicorn]
-

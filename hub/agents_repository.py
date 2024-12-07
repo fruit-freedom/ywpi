@@ -1,10 +1,9 @@
 import dataclasses
 import typing
 
-import models
-from logger import logger
-from .events_repository import repository as events
-
+from . import models
+from .logger import logger
+from .events.repository import repository as events
 
 class AbstractAgentConnector:
     async def start_task(self, payload: models.StartTaskRequest) -> models.StartTaskResponse: pass
@@ -15,26 +14,31 @@ class AgentDescription:
     name: str
     methods: list[models.Method]
     connector: AbstractAgentConnector
+    description: typing.Optional[str] = None
 
 class AgentRepository:
     def __init__(self) -> None:
         self._agents: dict[str, AgentDescription] = {}
 
-    async def add(self, id: str, name: str, methods: list[models.Method], connector: AbstractAgentConnector) -> AgentDescription:
-        if id in self._agents:
-            raise KeyError(f'agent with id "{id}" already exists')
+    async def add(self, data: models.RegisterAgentRequest, connector: AbstractAgentConnector):
+        if data.id in self._agents:
+            raise KeyError(f'agent with id "{data.id}" already exists')
 
         agent_description = AgentDescription(
-            id=id,
-            name=name,
-            methods=methods,
+            id=data.id,
+            name=data.name,
+            description=data.description,
+            methods=data.methods,
             connector=connector
         )
-        self._agents[id] = agent_description
+        self._agents[data.id] = agent_description
         await events.produce_agent_connected({
-            'id': id,
-            'name': name,
-            'methods': methods
+            'id': data.id,
+            'name': data.name,
+            'project': data.project,
+            'status': 'connected',
+            'description': data.description,
+            'methods': data.methods
         })
 
         return agent_description

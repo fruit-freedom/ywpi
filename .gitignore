@@ -1,5 +1,3 @@
 __pycache__
 venv
-
-# Ignore generated proto
-*pb2*
+build

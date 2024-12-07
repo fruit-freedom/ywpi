@@ -23,7 +23,7 @@ import {
 // import { getCenter } from 'ol/extent';
 // import DocumentsPage from './DocumentsPage';
 // import MethodPage from './MethodPage';
-import AgentsPage from './AgentsPage';
+import AgentsPage from './pages/AgentsPage';
 import { Box } from '@mui/material';
 import Header from './Header';
 import SideBar from './SideBar';
@@ -246,22 +246,6 @@ function Layout() {
 }
 
 const router = createBrowserRouter([
-    // {
-    //     path: "/tasks/:taskId",
-    //     element: <ObjectsView />,
-    // },
-    // {
-    //     path: "/list",
-    //     element: <DocumentsPage />,
-    // },
-    // {
-    //     path: "/ws",
-    //     element: <Ws />,
-    // },
-    // {
-    //     path: '/ywpi',
-    //     element: <MethodPage />
-    // },
     {
         element: <Layout />,
         children: [

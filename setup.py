@@ -16,7 +16,7 @@ setup(
     description="Advance log sytem",
     long_description="",
     zip_safe=True,
-    python_requires=">=3.11",
+    python_requires=">=3.10",
     packages=[
         'ywpi',
     ],

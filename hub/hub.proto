@@ -4,6 +4,7 @@ service Hub {
     rpc Connect(stream Message) returns (stream Message);
 
     rpc PushTask(PushTaskRequest) returns (PushTaskResponse);
+    rpc RunTask(PushTaskRequest) returns (RunTaskResponse);
     rpc GetAgentsList(GetAgentsListRequest) returns (GetAgentsListResponse);
 }
 
@@ -66,6 +67,12 @@ message PushTaskRequest {
 message PushTaskResponse {
     optional string task_id = 1;
     optional string error = 2;
+}
+
+message RunTaskResponse {
+    optional string task_id = 1;
+    optional string error = 2;
+    optional string outputs = 3;
 }
 
 message GetAgentsListRequest { }

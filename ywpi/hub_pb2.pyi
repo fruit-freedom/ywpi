@@ -67,6 +67,16 @@ class PushTaskResponse(_message.Message):
     error: str
     def __init__(self, task_id: _Optional[str] = ..., error: _Optional[str] = ...) -> None: ...
 
+class RunTaskResponse(_message.Message):
+    __slots__ = ("task_id", "error", "outputs")
+    TASK_ID_FIELD_NUMBER: _ClassVar[int]
+    ERROR_FIELD_NUMBER: _ClassVar[int]
+    OUTPUTS_FIELD_NUMBER: _ClassVar[int]
+    task_id: str
+    error: str
+    outputs: str
+    def __init__(self, task_id: _Optional[str] = ..., error: _Optional[str] = ..., outputs: _Optional[str] = ...) -> None: ...
+
 class GetAgentsListRequest(_message.Message):
     __slots__ = ()
     def __init__(self) -> None: ...

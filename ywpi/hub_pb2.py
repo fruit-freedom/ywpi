@@ -14,15 +14,15 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0eywpi/hub.proto\"4\n\x0eRequestMessage\x12\x11\n\x03rpc\x18\x01 \x01(\x0e\x32\x04.Rpc\x12\x0f\n\x07payload\x18\x03 \x01(\t\"Q\n\x0fResponseMessage\x12\x14\n\x07payload\x18\x02 \x01(\tH\x00\x88\x01\x01\x12\x12\n\x05\x65rror\x18\x03 \x01(\tH\x01\x88\x01\x01\x42\n\n\x08_payloadB\x08\n\x06_error\"p\n\x07Message\x12\x10\n\x08reply_to\x18\x01 \x01(\t\x12\"\n\x07request\x18\x02 \x01(\x0b\x32\x0f.RequestMessageH\x00\x12$\n\x08response\x18\x03 \x01(\x0b\x32\x10.ResponseMessageH\x00\x42\t\n\x07message\"T\n\x0fPushTaskRequest\x12\x10\n\x08\x61gent_id\x18\x01 \x01(\t\x12\x0e\n\x06method\x18\x02 \x01(\t\x12\x0e\n\x06params\x18\x03 \x01(\t\x12\x0f\n\x07payload\x18\x04 \x01(\t\"R\n\x10PushTaskResponse\x12\x14\n\x07task_id\x18\x01 \x01(\tH\x00\x88\x01\x01\x12\x12\n\x05\x65rror\x18\x02 \x01(\tH\x01\x88\x01\x01\x42\n\n\x08_task_idB\x08\n\x06_error\"\x16\n\x14GetAgentsListRequest\"#\n\x05Input\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x0c\n\x04type\x18\x02 \x01(\t\".\n\x06Method\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x16\n\x06inputs\x18\x02 \x03(\x0b\x32\x06.Input\";\n\x05\x41gent\x12\n\n\x02id\x18\x01 \x01(\t\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\x18\n\x07methods\x18\x03 \x03(\x0b\x32\x07.Method\"/\n\x15GetAgentsListResponse\x12\x16\n\x06\x61gents\x18\x01 \x03(\x0b\x32\x06.Agent*\x86\x01\n\x03Rpc\x12\x11\n\rRPC_UNDEFINED\x10\x00\x12\x16\n\x12RPC_REGISTER_AGENT\x10\x01\x12\x17\n\x13RPC_HEARTBEAT_AGENT\x10\x02\x12\x12\n\x0eRPC_START_TASK\x10\x03\x12\x12\n\x0eRPC_ABORT_TASK\x10\x04\x12\x13\n\x0fRPC_UPDATE_TASK\x10\x05\x32\x99\x01\n\x03Hub\x12!\n\x07\x43onnect\x12\x08.Message\x1a\x08.Message(\x01\x30\x01\x12/\n\x08PushTask\x12\x10.PushTaskRequest\x1a\x11.PushTaskResponse\x12>\n\rGetAgentsList\x12\x15.GetAgentsListRequest\x1a\x16.GetAgentsListResponseb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0eywpi/hub.proto\"4\n\x0eRequestMessage\x12\x11\n\x03rpc\x18\x01 \x01(\x0e\x32\x04.Rpc\x12\x0f\n\x07payload\x18\x03 \x01(\t\"Q\n\x0fResponseMessage\x12\x14\n\x07payload\x18\x02 \x01(\tH\x00\x88\x01\x01\x12\x12\n\x05\x65rror\x18\x03 \x01(\tH\x01\x88\x01\x01\x42\n\n\x08_payloadB\x08\n\x06_error\"p\n\x07Message\x12\x10\n\x08reply_to\x18\x01 \x01(\t\x12\"\n\x07request\x18\x02 \x01(\x0b\x32\x0f.RequestMessageH\x00\x12$\n\x08response\x18\x03 \x01(\x0b\x32\x10.ResponseMessageH\x00\x42\t\n\x07message\"T\n\x0fPushTaskRequest\x12\x10\n\x08\x61gent_id\x18\x01 \x01(\t\x12\x0e\n\x06method\x18\x02 \x01(\t\x12\x0e\n\x06params\x18\x03 \x01(\t\x12\x0f\n\x07payload\x18\x04 \x01(\t\"R\n\x10PushTaskResponse\x12\x14\n\x07task_id\x18\x01 \x01(\tH\x00\x88\x01\x01\x12\x12\n\x05\x65rror\x18\x02 \x01(\tH\x01\x88\x01\x01\x42\n\n\x08_task_idB\x08\n\x06_error\"s\n\x0fRunTaskResponse\x12\x14\n\x07task_id\x18\x01 \x01(\tH\x00\x88\x01\x01\x12\x12\n\x05\x65rror\x18\x02 \x01(\tH\x01\x88\x01\x01\x12\x14\n\x07outputs\x18\x03 \x01(\tH\x02\x88\x01\x01\x42\n\n\x08_task_idB\x08\n\x06_errorB\n\n\x08_outputs\"\x16\n\x14GetAgentsListRequest\"#\n\x05Input\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x0c\n\x04type\x18\x02 \x01(\t\".\n\x06Method\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x16\n\x06inputs\x18\x02 \x03(\x0b\x32\x06.Input\";\n\x05\x41gent\x12\n\n\x02id\x18\x01 \x01(\t\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\x18\n\x07methods\x18\x03 \x03(\x0b\x32\x07.Method\"/\n\x15GetAgentsListResponse\x12\x16\n\x06\x61gents\x18\x01 \x03(\x0b\x32\x06.Agent*\x86\x01\n\x03Rpc\x12\x11\n\rRPC_UNDEFINED\x10\x00\x12\x16\n\x12RPC_REGISTER_AGENT\x10\x01\x12\x17\n\x13RPC_HEARTBEAT_AGENT\x10\x02\x12\x12\n\x0eRPC_START_TASK\x10\x03\x12\x12\n\x0eRPC_ABORT_TASK\x10\x04\x12\x13\n\x0fRPC_UPDATE_TASK\x10\x05\x32\xc8\x01\n\x03Hub\x12!\n\x07\x43onnect\x12\x08.Message\x1a\x08.Message(\x01\x30\x01\x12/\n\x08PushTask\x12\x10.PushTaskRequest\x1a\x11.PushTaskResponse\x12-\n\x07RunTask\x12\x10.PushTaskRequest\x1a\x10.RunTaskResponse\x12>\n\rGetAgentsList\x12\x15.GetAgentsListRequest\x1a\x16.GetAgentsListResponseb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'ywpi.hub_pb2', _globals)
 if not _descriptor._USE_C_DESCRIPTORS:
   DESCRIPTOR._loaded_options = None
-  _globals['_RPC']._serialized_start=659
-  _globals['_RPC']._serialized_end=793
+  _globals['_RPC']._serialized_start=776
+  _globals['_RPC']._serialized_end=910
   _globals['_REQUESTMESSAGE']._serialized_start=18
   _globals['_REQUESTMESSAGE']._serialized_end=70
   _globals['_RESPONSEMESSAGE']._serialized_start=72
@@ -33,16 +33,18 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_PUSHTASKREQUEST']._serialized_end=353
   _globals['_PUSHTASKRESPONSE']._serialized_start=355
   _globals['_PUSHTASKRESPONSE']._serialized_end=437
-  _globals['_GETAGENTSLISTREQUEST']._serialized_start=439
-  _globals['_GETAGENTSLISTREQUEST']._serialized_end=461
-  _globals['_INPUT']._serialized_start=463
-  _globals['_INPUT']._serialized_end=498
-  _globals['_METHOD']._serialized_start=500
-  _globals['_METHOD']._serialized_end=546
-  _globals['_AGENT']._serialized_start=548
-  _globals['_AGENT']._serialized_end=607
-  _globals['_GETAGENTSLISTRESPONSE']._serialized_start=609
-  _globals['_GETAGENTSLISTRESPONSE']._serialized_end=656
-  _globals['_HUB']._serialized_start=796
-  _globals['_HUB']._serialized_end=949
+  _globals['_RUNTASKRESPONSE']._serialized_start=439
+  _globals['_RUNTASKRESPONSE']._serialized_end=554
+  _globals['_GETAGENTSLISTREQUEST']._serialized_start=556
+  _globals['_GETAGENTSLISTREQUEST']._serialized_end=578
+  _globals['_INPUT']._serialized_start=580
+  _globals['_INPUT']._serialized_end=615
+  _globals['_METHOD']._serialized_start=617
+  _globals['_METHOD']._serialized_end=663
+  _globals['_AGENT']._serialized_start=665
+  _globals['_AGENT']._serialized_end=724
+  _globals['_GETAGENTSLISTRESPONSE']._serialized_start=726
+  _globals['_GETAGENTSLISTRESPONSE']._serialized_end=773
+  _globals['_HUB']._serialized_start=913
+  _globals['_HUB']._serialized_end=1113
 # @@protoc_insertion_point(module_scope)

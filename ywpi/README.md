@@ -26,3 +26,31 @@ def fn(
 ):
     pass
 ```
+
+
+
+Referenced JSON
+
+```json
+{
+    "output_str": {
+        "type": "str",
+        "value": ""
+    },
+    "output_int": {
+        "type": "int",
+        "value": 0
+    },
+    "output_url": {
+        "type": "url",
+        "value": "https://python.org/"
+    },
+    "output_ref": {
+        "type": "ref",
+        "value": {
+            "drive_id": "",
+            "preview_href": ""
+        }
+    }
+}
+```

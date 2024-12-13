@@ -13,10 +13,12 @@ TYPE_NAMES = {
     ytypes.Image: 'image'
 }
 
-SERIALIZERS = {
+
+SERIALIZERS: dict[t.Any, t.Callable] = {
     str: lambda v: str(v),
     int: lambda v: int(v),
 }
+
 
 def cvt_image(value):
     ref = value['ref']
@@ -25,11 +27,13 @@ def cvt_image(value):
         raise TypeError('ref image')
     return ytypes.Image()
 
+
 def cvt_ref(value):
     ref = value['ref']
     return ytypes.Ref()
 
-DESERIALIZERS = {
+
+DESERIALIZERS: dict[t.Any, t.Callable] = {
     str: lambda v: v,
     int: lambda v: int(v),
     float: lambda v: float(v),
@@ -37,18 +41,28 @@ DESERIALIZERS = {
     ytypes.Text: lambda v: str(v)
 }
 
+
 # (From Type, To Type) -> Converter
 TYPE_CONVERTERS = {
     (ytypes.Image, bytes): lambda v: bytes('image-data', encoding='utf-8'),
     (ytypes.Text, str): lambda v: str(v),
 }
 
+
 @dataclasses.dataclass
 class InputTyping:
+    """
+    Fields:
+        name: type name
+        target_tp: python object representation of type. (Actually type)
+        json_repr: json representation of type. Usually it is dict with ywpi Ref 
+    """
     name: str
     target_tp: t.Any
     source_tp: t.Any | None = None
     optional: bool = False
+    json_repr: t.Optional[t.Union[int, str, float, dict, list]] = None
+
 
 def get_input_dict(fn) -> dict[str, InputTyping]:
     """
@@ -89,6 +103,7 @@ def get_input_dict(fn) -> dict[str, InputTyping]:
             else:
                 raise KeyError(f'type {tp} has not got deserializer')
     return inputs_dict
+
 
 def handle_args(data, inputs: dict[str, InputTyping]):
     result_args = {}

@@ -49,6 +49,11 @@ class HubStub(object):
                 request_serializer=ywpi_dot_hub__pb2.PushTaskRequest.SerializeToString,
                 response_deserializer=ywpi_dot_hub__pb2.PushTaskResponse.FromString,
                 _registered_method=True)
+        self.RunTask = channel.unary_unary(
+                '/Hub/RunTask',
+                request_serializer=ywpi_dot_hub__pb2.PushTaskRequest.SerializeToString,
+                response_deserializer=ywpi_dot_hub__pb2.RunTaskResponse.FromString,
+                _registered_method=True)
         self.GetAgentsList = channel.unary_unary(
                 '/Hub/GetAgentsList',
                 request_serializer=ywpi_dot_hub__pb2.GetAgentsListRequest.SerializeToString,
@@ -66,6 +71,12 @@ class HubServicer(object):
         raise NotImplementedError('Method not implemented!')
 
     def PushTask(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def RunTask(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -89,6 +100,11 @@ def add_HubServicer_to_server(servicer, server):
                     servicer.PushTask,
                     request_deserializer=ywpi_dot_hub__pb2.PushTaskRequest.FromString,
                     response_serializer=ywpi_dot_hub__pb2.PushTaskResponse.SerializeToString,
+            ),
+            'RunTask': grpc.unary_unary_rpc_method_handler(
+                    servicer.RunTask,
+                    request_deserializer=ywpi_dot_hub__pb2.PushTaskRequest.FromString,
+                    response_serializer=ywpi_dot_hub__pb2.RunTaskResponse.SerializeToString,
             ),
             'GetAgentsList': grpc.unary_unary_rpc_method_handler(
                     servicer.GetAgentsList,
@@ -150,6 +166,33 @@ class Hub(object):
             '/Hub/PushTask',
             ywpi_dot_hub__pb2.PushTaskRequest.SerializeToString,
             ywpi_dot_hub__pb2.PushTaskResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def RunTask(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/Hub/RunTask',
+            ywpi_dot_hub__pb2.PushTaskRequest.SerializeToString,
+            ywpi_dot_hub__pb2.RunTaskResponse.FromString,
             options,
             channel_credentials,
             insecure,

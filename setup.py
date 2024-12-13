@@ -20,5 +20,8 @@ setup(
     packages=[
         'ywpi',
     ],
-    install_requires=read_requirements('requirements.txt')
+    install_requires=read_requirements('requirements.txt'),
+    entry_points={
+        'console_scripts': ['ywpi=ywpi.cli:main']
+    }
 )

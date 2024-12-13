@@ -134,7 +134,10 @@ class SimpleMethodExecuter:
                 for outputs in method(**kwargs):
                     exchanger.call_update_task(models.UpdateTaskRequest(id=task_id, outputs=outputs))
             else:
-                method(**kwargs)
+                outputs = method(**kwargs)
+                if outputs is not None:
+                    # TODO: Join update status & update outputs events 
+                    exchanger.call_update_task(models.UpdateTaskRequest(id=task_id, outputs=outputs))
             status = 'completed'
         except BaseException as e:
             import traceback

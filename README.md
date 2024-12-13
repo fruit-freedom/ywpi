@@ -1,8 +1,12 @@
 Startup
 
 ```bash
-# For other (global)
-python -m grpc_tools.protoc --python_out=. --grpc_python_out=. --pyi_out=. -I . hub.proto
+# For server
+python -m grpc_tools.protoc --python_out=. --grpc_python_out=. --pyi_out=. -I . server/hub.proto
+
+# For hub
+python -m grpc_tools.protoc --python_out=. --grpc_python_out=. --pyi_out=. -I . hub/hub.proto
+
 
 # For ywpi package
 python -m grpc_tools.protoc --python_out=. --grpc_python_out=. --pyi_out=. -I . ywpi/hub.proto
@@ -33,4 +37,26 @@ Declare its own `DriveHub` class.
 # Features
 - REST API interface for develop
 - gRPC interface for production
+
+
+
+# Yields
+
+```python
+# Yield value with specific key
+yield 'key_name', value
+
+# Yield value in __others__ list
+yield value
+
+# Yield multiple keys
+yield ywpi.Outputs({
+    'key_1': value_1,
+    'key_2': value_2
+})
+
+# Yield full outputs
+yield InheritedFromDataclass
+```
+
 

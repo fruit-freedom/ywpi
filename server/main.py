@@ -6,8 +6,8 @@ import pydantic
 import aiochannel
 import grpc
 
-import hub_pb2
-import hub_pb2_grpc
+from . import hub_pb2
+from . import hub_pb2_grpc
 import uvicorn
 
 from . import models
@@ -62,6 +62,22 @@ async def create_task(body: CreateTaskBody):
     return {
         'task_id': response.task_id
     }
+
+
+@router.post('/api/run_task')
+async def run_task(body: CreateTaskBody):
+    response: hub_pb2.RunTaskResponse = await hub_sub.RunTask(
+        hub_pb2.PushTaskRequest(
+            agent_id=body.agent_id,
+            method=body.method,
+            params=json.dumps(body.inputs),
+        )
+    )
+
+    if response.HasField('error'):
+        raise fastapi.HTTPException(status_code=500, detail=response.error)
+
+    return json.loads(response.outputs)
 
 
 async def lifespan(app):

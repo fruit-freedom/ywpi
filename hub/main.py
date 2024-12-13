@@ -12,8 +12,8 @@ import asyncio
 import grpc
 import aiochannel
 
-import hub_pb2_grpc
-import hub_pb2
+from . import hub_pb2_grpc
+from . import hub_pb2
 from . import models
 from .logger import logger
 from hub.events.repository import repository as events
@@ -200,6 +200,23 @@ class Hub(hub_pb2_grpc.HubServicer):
         except:
             print(traceback.format_exc())
             return hub_pb2.PushTaskResponse(error='Unknown agent error')
+
+    async def RunTask(self, request: hub_pb2.PushTaskRequest, context: grpc.ServicerContext):
+        try:
+            agent = agents.get(request.agent_id)
+            created_task, future = await tasks.add_with_tracking(request.agent_id, request.method, json.loads(request.params))
+
+            response = await agent.connector.start_task(models.StartTaskRequest(
+                id=created_task.id,
+                method=request.method,
+                params=json.loads(request.params)
+            ))
+            
+            task = await future
+            return hub_pb2.RunTaskResponse(outputs=json.dumps(task.outputs))
+        except:
+            print(traceback.format_exc())
+            return hub_pb2.RunTaskResponse(error='Unknown agent error')
 
     async def GetAgentsList(self, request: hub_pb2.GetAgentsListRequest, context: grpc.ServicerContext):
         result = []

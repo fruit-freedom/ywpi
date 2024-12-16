@@ -19,7 +19,7 @@ from .logger import logger
 from . import settings
 from ywpi import Spec, MethodDescription, RegisteredMethod, REGISTERED_METHODS
 from ywpi.handle_args import handle_args, InputTyping
-
+from ywpi.serialization import handle_outputs
 
 class Channel:
     def __init__(self):
@@ -132,12 +132,17 @@ class SimpleMethodExecuter:
             staticgenerator = isinstance(method, staticmethod) and inspect.isgeneratorfunction(method.__func__)
             if inspect.isgeneratorfunction(method) or staticgenerator:
                 for outputs in method(**kwargs):
-                    exchanger.call_update_task(models.UpdateTaskRequest(id=task_id, outputs=outputs))
+                    try:
+                        exchanger.call_update_task(
+                            models.UpdateTaskRequest(id=task_id, outputs=handle_outputs(outputs))
+                        )
+                    except TypeError as e:
+                        logger.warning(f'Outputs serializations error: {e.args}')
             else:
                 outputs = method(**kwargs)
                 if outputs is not None:
                     # TODO: Join update status & update outputs events 
-                    exchanger.call_update_task(models.UpdateTaskRequest(id=task_id, outputs=outputs))
+                    exchanger.call_update_task(models.UpdateTaskRequest(id=task_id, outputs=handle_outputs(outputs)))
             status = 'completed'
         except BaseException as e:
             import traceback

@@ -1,5 +1,3 @@
 grpcio-tools==1.64.0
-aiochannel
 pydantic
-aio_pika
-fastapi[uvicorn]
+watchfiles

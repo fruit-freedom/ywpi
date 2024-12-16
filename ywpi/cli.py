@@ -3,13 +3,17 @@ import argparse
 import sys
 import os
 
+import watchfiles
+
 import ywpi
 
 
 parser = argparse.ArgumentParser()
 parser.add_argument('command', choices=['run'])
 parser.add_argument('target', help='Path to launch target. Example: agents.test:func')
-parser.add_argument('--id', type=str, help='Agent id')
+parser.add_argument('--id', type=str, help='Agent id', default='ywpi-run')
+parser.add_argument('--name', type=str, help='Agent name', default='Untitled')
+parser.add_argument('--reload', action='store_true', help='Enable auto reloading', default=False)
 
 
 def perform_run_command(args):
@@ -22,14 +26,17 @@ def perform_run_command(args):
     if len(method) > 0:
         ywpi.method(module.__dict__[method])
 
-    ywpi.serve(args.id if args.id is not None else 'ywpi-run')
+    ywpi.serve(args.id, args.name)
 
 
 def main():
     args = parser.parse_args()
 
     if args.command == 'run':
-        perform_run_command(args)
+        if args.reload:
+            watchfiles.run_process('.', target=perform_run_command, args=(args,))
+        else:
+            perform_run_command(args)
 
 
 if __name__ == '__main__':

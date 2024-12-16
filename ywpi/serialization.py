@@ -1,6 +1,7 @@
 import inspect
 import typing as t
 import dataclasses
+import pydantic
 
 from ywpi.handle_args import SERIALIZERS, DESERIALIZERS, TYPE_NAMES
 
@@ -57,6 +58,23 @@ def deserial(fn):
     DESERIALIZERS[tp] = fn
     TYPE_NAMES[tp] = tp_name
     return fn
+
+
+def handle_outputs(data: t.Any) -> dict[str, t.Any]:
+    if isinstance(data, dict):
+        return data
+    elif isinstance(data, (list, tuple, set)):
+        return {
+            '__others__': [ handle_outputs(d) for d in data ]
+        }
+    elif isinstance(data, pydantic.BaseModel):
+        return data.model_dump(mode='json')
+    elif dataclasses.is_dataclass(data):
+        return dataclasses.asdict(data)
+    elif type(data) in SERIALIZERS:
+        return SERIALIZERS[data](data)
+    else:
+        raise TypeError(f'Type {type(data)} has not got serialize handler')
 
 
 # @dataclasses.dataclass

@@ -1,6 +1,4 @@
-import enum
 import typing as t
-import datetime
 
 import pydantic
 
@@ -10,9 +8,16 @@ class InputDescription(pydantic.BaseModel):
     type: str
 
 
+class Field(pydantic.BaseModel):
+    name: str
+    type: str # "llama_index.Document"
+    args: t.Optional[list] = None
+
+
 class Method(pydantic.BaseModel):
     name: str
     inputs: list[InputDescription]
+    outputs: list[Field]
     description: t.Optional[str] = None
 
 

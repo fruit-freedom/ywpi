@@ -4,7 +4,7 @@ import types
 import dataclasses
 import enum
 
-from .handle_args import get_input_dict, InputTyping
+from .handle_args import get_input_dict, InputTyping, get_output_dict, Type
 
 
 class Spec(enum.Enum):
@@ -58,6 +58,7 @@ def api(func):
 class RegisteredMethod:
     fn: typing.Callable
     inputs: dict[str, InputTyping]
+    outputs: dict[str, Type]
     description: typing.Optional[str] = None
 
 
@@ -66,11 +67,12 @@ DEFAULT_DESCRIPTION = 'No description provided'
 
 
 def _register_method(func, description: str = DEFAULT_DESCRIPTION):
-    # print('API method parameters', list(signature.parameters.values()))
     inputs = get_input_dict(func)
+    outputs = get_output_dict(func)
     REGISTERED_METHODS[func.__name__] = RegisteredMethod(
         fn=func,
         inputs=inputs,
+        outputs=outputs,
         description=description
     )
     return func

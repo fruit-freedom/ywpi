@@ -8,9 +8,16 @@ class InputDescription(pydantic.BaseModel):
     type: str
 
 
+class Field(pydantic.BaseModel):
+    name: str
+    type: str # "llama_index.Document"
+    args: t.Optional[list] = None
+
+
 class Method(pydantic.BaseModel):
     name: str
     inputs: list[InputDescription]
+    outputs: list[Field]
     description: t.Optional[str] = None
 
 
@@ -18,7 +25,7 @@ class RegisterAgentRequest(pydantic.BaseModel):
     id: str
     name: str
     project: t.Optional[str] = None
-    description: str
+    description: t.Optional[str] = None
     methods: list[Method]
 
 

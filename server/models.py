@@ -15,9 +15,17 @@ class InputDescription(pydantic.BaseModel):
     name: str
     type: str
 
+
+class Field(pydantic.BaseModel):
+    name: str
+    type: str # "llama_index.Document"
+    args: t.Optional[list] = None
+
+
 class Method(pydantic.BaseModel):
     name: str
     inputs: list[InputDescription]
+    outputs: list[Field]
     description: t.Optional[str] = None
 
 

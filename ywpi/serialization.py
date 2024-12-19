@@ -45,6 +45,7 @@ def deserial(fn):
     else:
         tp_name = tp.__name__
 
+    # TODO: Remove assert and use exceptions
     assert not issubclass(inspect.Parameter.empty, tp)
     assert tp not in DESERIALIZERS
 

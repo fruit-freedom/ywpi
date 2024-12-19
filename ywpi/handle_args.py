@@ -153,4 +153,44 @@ def handle_args(data, inputs: dict[str, InputTyping]):
 # # print(type_hints['text'].__origin__, type_hints['text'].__metadata__, type_hints['text'])
 # # print(t.get_origin(t.Annotated[str, ywpi.Text]) is t.Annotated)
 
+@dataclasses.dataclass
+class Type:
+    name: str
+    tp: t.Any
+    args: t.Optional[list['Type']] = None
+
+
+def handle_tp(tp: t.Any) -> Type:
+    args = t.get_args(tp)
+    orig = t.get_origin(tp) if args else tp
+
+    if orig in (list, set):
+        out = Type(name=orig.__name__, tp=orig)
+        if args:
+            out.args = [
+                handle_tp(args[0])
+            ]
+        return out
+    else:
+        return Type(name=orig.__name__, tp=orig)
+
+
+def handle_ret(fn):
+    tp = inspect.signature(fn).return_annotation
+
+    if not t.get_args(tp) and issubclass(inspect.Parameter.empty, tp): return
+
+    return handle_tp(tp)
+
+
+def get_output_dict(fn):
+    t = handle_ret(fn)
+    if t is not None:
+        if t.tp in (list, set) and t.args is not None:
+            return {
+                '__others__': t.args[0]
+            }
+        return {}
+    else:
+        return {}
 

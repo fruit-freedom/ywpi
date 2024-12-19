@@ -114,6 +114,10 @@ class SimpleMethodExecuter:
                     models.InputDescription(name=input_name, type=input.name)
                     for input_name, input in registered_method.inputs.items()
                 ],
+                outputs=[
+                    models.Field(name=output_name, type=output.name)
+                    for output_name, output in registered_method.outputs.items()
+                ],
                 description=registered_method.description
             ))
             self.calls[name] = registered_method.fn

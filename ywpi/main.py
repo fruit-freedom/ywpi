@@ -14,7 +14,7 @@ import pydantic
 
 from . import hub_pb2
 from . import hub_pb2_grpc
-from . import models
+from . import hub_models
 from .logger import logger
 from . import settings
 from ywpi import Spec, MethodDescription, RegisteredMethod, REGISTERED_METHODS
@@ -62,10 +62,10 @@ class ServiceServer:
 
         for name, description in self.agent_cls.__dict__[Spec.CLASS_API_METHODS.value].items():
             description: MethodDescription
-            self.methods.append(models.Method(
+            self.methods.append(hub_models.Method(
                 name=name,
                 inputs=[
-                    models.InputDescription(name=param.name, type=ServiceServer.TYPE_TO_YWPI[param.annotation])
+                    hub_models.InputDescription(name=param.name, type=ServiceServer.TYPE_TO_YWPI[param.annotation])
                     for param in description.parameters
                 ]
             ))
@@ -77,7 +77,7 @@ class ServiceServer:
             staticgenerator = isinstance(method, staticmethod) and inspect.isgeneratorfunction(method.__func__)
             if inspect.isgeneratorfunction(method) or staticgenerator:
                 for outputs in method(**kwargs):
-                    exchanger.call_update_task(models.UpdateTaskRequest(id=task_id, outputs=outputs))
+                    exchanger.call_update_task(hub_models.UpdateTaskRequest(id=task_id, outputs=outputs))
             else:
                 method(**kwargs)
                 status = 'completed'
@@ -87,7 +87,7 @@ class ServiceServer:
             logger.warning('method raise exception')
             status = 'failed'
         finally:
-            exchanger.call_update_task(models.UpdateTaskRequest(id=task_id, status=status))
+            exchanger.call_update_task(hub_models.UpdateTaskRequest(id=task_id, status=status))
 
     def call_method(self, exchanger: 'Exchanger', task_id: str, method: str, params: dict[str, typing.Any]):
         self.thread_pool.submit(ServiceServer._method_wrapper, task_id, exchanger, self.calls[method], **params)
@@ -104,18 +104,18 @@ class SimpleMethodExecuter:
         self.thread_pool = futures.ThreadPoolExecutor(max_workers=1)
 
         self.calls: dict[str, typing.Callable] = {}
-        self.methods: list[models.Method] = []
+        self.methods: list[hub_models.Method] = []
         self.method_input_dicts: dict[str, dict[str, InputTyping]] = {}
 
         for name, registered_method in registered_methods.items():
-            self.methods.append(models.Method(
+            self.methods.append(hub_models.Method(
                 name=name,
                 inputs=[
-                    models.InputDescription(name=input_name, type=input.name)
+                    hub_models.InputDescription(name=input_name, type=input.name)
                     for input_name, input in registered_method.inputs.items()
                 ],
                 outputs=[
-                    models.Field(name=output_name, type=output.name)
+                    hub_models.Field(name=output_name, type=output.name)
                     for output_name, output in registered_method.outputs.items()
                 ],
                 description=registered_method.description
@@ -138,7 +138,7 @@ class SimpleMethodExecuter:
                 for outputs in method(**kwargs):
                     try:
                         exchanger.call_update_task(
-                            models.UpdateTaskRequest(id=task_id, outputs=handle_outputs(outputs))
+                            hub_models.UpdateTaskRequest(id=task_id, outputs=handle_outputs(outputs))
                         )
                     except TypeError as e:
                         logger.warning(f'Outputs serializations error: {e.args}')
@@ -146,7 +146,7 @@ class SimpleMethodExecuter:
                 outputs = method(**kwargs)
                 if outputs is not None:
                     # TODO: Join update status & update outputs events 
-                    exchanger.call_update_task(models.UpdateTaskRequest(id=task_id, outputs=handle_outputs(outputs)))
+                    exchanger.call_update_task(hub_models.UpdateTaskRequest(id=task_id, outputs=handle_outputs(outputs)))
             status = 'completed'
         except BaseException as e:
             import traceback
@@ -154,10 +154,10 @@ class SimpleMethodExecuter:
             logger.warning('method raise exception')
             status = 'failed'
         finally:
-            exchanger.call_update_task(models.UpdateTaskRequest(id=task_id, status=status))
+            exchanger.call_update_task(hub_models.UpdateTaskRequest(id=task_id, status=status))
 
     def call_method(self, exchanger: 'Exchanger', task_id: str, method: str, inputs: dict[str, typing.Any]):
-        exchanger.call_update_task(models.UpdateTaskRequest(id=task_id, status='started'))
+        exchanger.call_update_task(hub_models.UpdateTaskRequest(id=task_id, status='started'))
         self.thread_pool.submit(
             SimpleMethodExecuter._method_wrapper,
             task_id,
@@ -210,16 +210,16 @@ class Exchanger:
             )
         )
 
-    def _rpc_start_task(self, payload: models.StartTaskRequest) -> models.StartTaskResponse:
+    def _rpc_start_task(self, payload: hub_models.StartTaskRequest) -> hub_models.StartTaskResponse:
         status = 'failed'
         self.service.call_method(self, payload.id, payload.method, payload.params)
-        return models.StartTaskResponse(status=status)
+        return hub_models.StartTaskResponse(status=status)
 
     def _handle_request(self, reply_to: str, request: hub_pb2.RequestMessage):
         try:
             if request.rpc == hub_pb2.Rpc.RPC_START_TASK:
                 response = self._rpc_start_task(
-                    models.StartTaskRequest.model_validate_json(request.payload)
+                    hub_models.StartTaskRequest.model_validate_json(request.payload)
                 )
                 self._write_response_message(
                     reply_to,
@@ -269,10 +269,10 @@ class Exchanger:
         self._write_request_message(rpc, payload, reply_to)
         return future
 
-    def call_register_agent(self, payload: models.RegisterAgentRequest):
+    def call_register_agent(self, payload: hub_models.RegisterAgentRequest):
         return self.call(hub_pb2.Rpc.RPC_REGISTER_AGENT, payload.model_dump_json())
 
-    def call_update_task(self, payload: models.UpdateTaskRequest):
+    def call_update_task(self, payload: hub_models.UpdateTaskRequest):
         return self.call(hub_pb2.Rpc.RPC_UPDATE_TASK, payload.model_dump_json())
 
 
@@ -289,7 +289,7 @@ def serve_class(cls):
         output_channel = Channel()
         response_iterator = greeter_stub.Connect(iter(output_channel))
 
-        hello_message = models.RegisterAgentRequest(
+        hello_message = hub_models.RegisterAgentRequest(
             id=get_agent_id(),
             name=cls.__name__,
             methods=service.methods
@@ -324,7 +324,7 @@ def serve(
         output_channel = Channel()
         response_iterator = greeter_stub.Connect(iter(output_channel))
 
-        hello_message = models.RegisterAgentRequest(
+        hello_message = hub_models.RegisterAgentRequest(
             id=id if id is not None else get_agent_id(),
             name=name,
             project=project,

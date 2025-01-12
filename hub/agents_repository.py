@@ -1,18 +1,19 @@
 import dataclasses
 import typing
 
-from . import models
+from . import hub_models
 from .logger import logger
 from .events.repository import repository as events
 
 class AbstractAgentConnector:
-    async def start_task(self, payload: models.StartTaskRequest) -> models.StartTaskResponse: pass
+    async def start_task(self, payload: hub_models.StartTaskRequest) -> hub_models.StartTaskResponse: pass
+    async def push_task_input(self, payload: typing.Any) -> typing.Any: pass
 
 @dataclasses.dataclass
 class AgentDescription:
     id: str
     name: str
-    methods: list[models.Method]
+    methods: list[hub_models.Method]
     connector: AbstractAgentConnector
     description: typing.Optional[str] = None
 
@@ -20,7 +21,7 @@ class AgentRepository:
     def __init__(self) -> None:
         self._agents: dict[str, AgentDescription] = {}
 
-    async def add(self, data: models.RegisterAgentRequest, connector: AbstractAgentConnector):
+    async def add(self, data: hub_models.RegisterAgentRequest, connector: AbstractAgentConnector):
         if data.id in self._agents:
             raise KeyError(f'agent with id "{data.id}" already exists')
 

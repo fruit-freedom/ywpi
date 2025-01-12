@@ -1,3 +1,5 @@
+# Copied from hub/hub_models.py DO NOT EDIT!
+
 import typing as t
 
 import pydantic

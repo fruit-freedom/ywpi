@@ -3,30 +3,7 @@ import typing as t
 import datetime
 
 import pydantic
-
-
-class StartTaskMessage(pydantic.BaseModel):
-    method: str
-    params: dict = {}
-    payload: dict = {}
-
-
-class InputDescription(pydantic.BaseModel):
-    name: str
-    type: str
-
-
-class Field(pydantic.BaseModel):
-    name: str
-    type: str # "llama_index.Document"
-    args: t.Optional[list] = None
-
-
-class Method(pydantic.BaseModel):
-    name: str
-    inputs: list[InputDescription]
-    outputs: list[Field]
-    description: t.Optional[str] = None
+from .hub_models import Method
 
 
 PyObjectId = t.Annotated[str, pydantic.BeforeValidator(str)]

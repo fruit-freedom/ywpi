@@ -14,7 +14,7 @@ import aiochannel
 
 from . import hub_pb2_grpc
 from . import hub_pb2
-from . import models
+from . import hub_models
 from .logger import logger
 from hub.events.repository import repository as events
 from hub.agents_repository import repository as agents, AgentDescription
@@ -86,11 +86,11 @@ class Exchanger:
         try:
             if request.rpc == hub_pb2.Rpc.RPC_REGISTER_AGENT:
                 response = await self._rpc_register_agent(
-                    models.RegisterAgentRequest.model_validate_json(request.payload)
+                    hub_models.RegisterAgentRequest.model_validate_json(request.payload)
                 )
             elif request.rpc == hub_pb2.Rpc.RPC_UPDATE_TASK:
                 response = await self._rpc_update_task(
-                    models.UpdateTaskRequest.model_validate_json(request.payload)
+                    hub_models.UpdateTaskRequest.model_validate_json(request.payload)
                 )
             else:
                 raise NotImplementedError(f'rpc {hub_pb2.Rpc.Name(request.rpc)} not implemented')
@@ -138,7 +138,7 @@ class Exchanger:
         finally:
             pass
 
-    async def _rpc_register_agent(self, payload: models.RegisterAgentRequest) -> models.RegisterAgentResponse:
+    async def _rpc_register_agent(self, payload: hub_models.RegisterAgentRequest) -> hub_models.RegisterAgentResponse:
         if self._agent_description is not None:
             raise AgentProtocolError('Agent already registered')
 
@@ -146,9 +146,9 @@ class Exchanger:
 
         logger.info(f'Register new agent "{payload.id}" ({payload.project} / "{payload.name}")')
         logger.debug(f'Agent "{payload.id}" methods: {payload.methods}')
-        return models.RegisterAgentResponse()
+        return hub_models.RegisterAgentResponse()
 
-    async def _rpc_update_task(self, payload: models.UpdateTaskRequest) -> models.UpdateTaskResponse:
+    async def _rpc_update_task(self, payload: hub_models.UpdateTaskRequest) -> hub_models.UpdateTaskResponse:
         if self._agent_description is None:
             raise AgentProtocolError('Agent not registered')
 
@@ -158,9 +158,9 @@ class Exchanger:
         if payload.status is not None:
             await tasks.update_status(payload.id, payload.status)
 
-        return models.UpdateTaskResponse()
+        return hub_models.UpdateTaskResponse()
 
-    async def start_task(self, payload: models.StartTaskRequest) -> models.StartTaskResponse:
+    async def start_task(self, payload: hub_models.StartTaskRequest) -> hub_models.StartTaskResponse:
         if self._agent_description is None:
             raise AgentProtocolError('Agent not registered')
 
@@ -168,7 +168,7 @@ class Exchanger:
         if response.HasField('error'):
             raise Exception(response.error)
 
-        return models.StartTaskResponse.model_validate_json(response.payload)
+        return hub_models.StartTaskResponse.model_validate_json(response.payload)
 
 
 class Hub(hub_pb2_grpc.HubServicer):
@@ -189,7 +189,7 @@ class Hub(hub_pb2_grpc.HubServicer):
             agent = agents.get(request.agent_id)
             task = await tasks.add(request.agent_id, request.method, json.loads(request.params))
 
-            response = await agent.connector.start_task(models.StartTaskRequest(
+            response = await agent.connector.start_task(hub_models.StartTaskRequest(
                 id=task.id,
                 method=request.method,
                 params=json.loads(request.params)
@@ -206,7 +206,7 @@ class Hub(hub_pb2_grpc.HubServicer):
             agent = agents.get(request.agent_id)
             created_task, future = await tasks.add_with_tracking(request.agent_id, request.method, json.loads(request.params))
 
-            response = await agent.connector.start_task(models.StartTaskRequest(
+            response = await agent.connector.start_task(hub_models.StartTaskRequest(
                 id=created_task.id,
                 method=request.method,
                 params=json.loads(request.params)

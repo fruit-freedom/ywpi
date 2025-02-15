@@ -2,7 +2,7 @@ from aio_pika import connect
 from aio_pika.abc import AbstractIncomingMessage
 from bson import ObjectId
 
-from settings import RQ_CONNECTION_STRING, RQ_EXCHANGE_NAME
+from app.settings import RQ_CONNECTION_STRING, RQ_EXCHANGE_NAME
 from .db import agents_collection, tasks_collection
 from .subscribers import SUBSCRIBERS
 from . import models

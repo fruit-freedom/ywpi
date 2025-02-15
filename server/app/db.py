@@ -6,4 +6,6 @@ mongodb = client['ywpi']
 agents_collection = mongodb['agents']
 tasks_collection = mongodb['tasks']
 
-
+projects_collection = mongodb['projects']
+boards_collection = mongodb['boards']
+objects_collection = mongodb['objects']

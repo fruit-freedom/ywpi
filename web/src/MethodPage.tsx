@@ -126,7 +126,7 @@ export default () => {
             </Paper>
             {
                 runs.map(e => (
-                    <Paper sx={{ marginTop: '1em', padding: '1em' }}>
+                    <Paper key={e.id} sx={{ marginTop: '1em', padding: '1em' }}>
                         <Typography fontWeight={600} variant='h6'>ID: {e.id}</Typography>
                     </Paper>        
                 ))

@@ -1,11 +1,11 @@
-import React, { useEffect } from "react"
-import { Box, Typography, Accordion, AccordionDetails, AccordionSummary } from "@mui/material";
+import React, { useEffect, useState } from "react"
+import { Box, Typography, Accordion, AccordionDetails, AccordionSummary, Stack, IconButton, Menu, MenuItem } from "@mui/material";
+import AddIcon from '@mui/icons-material/Add';
 
 import { useAgents } from "./store/store";
 import StatusIndicator from "./components/StatusIndicator";
 import { IndicatorColor } from "./components/StatusIndicator";
 import { AgentStatus } from "./hooks/useEvents";
-
 
 export default function () {
     const { agents, setActiveAgentIndex, setActiveAgentMethodIndex } = useAgents();
@@ -44,7 +44,9 @@ export default function () {
                             <AccordionDetails sx={{ padding: 0 }}>
                                 {
                                     agent.methods.map((method, methodIndex) => (
-                                        <Box
+                                        <Stack
+                                            direction={'row'}
+                                            justifyContent={'space-between'}
                                             padding={'0.2em 2em'}
                                             sx={{
                                                 cursor: 'pointer',
@@ -57,7 +59,18 @@ export default function () {
                                             key={method.name}
                                         >
                                             <Typography fontWeight={'600'}>{method.name}</Typography>
-                                        </Box>
+                                            {/* <Box>
+                                                <IconButton
+                                                    size='small'
+                                                    sx={{ padding: 0, borderRadius: '4px' }}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                    }}
+                                                >
+                                                    <AddIcon />
+                                                </IconButton>
+                                            </Box> */}
+                                        </Stack>
                                     ))
                                 }
                             </AccordionDetails>

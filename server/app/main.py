@@ -6,14 +6,16 @@ import pydantic
 import aiochannel
 import grpc
 
-from . import hub_pb2
-from . import hub_pb2_grpc
+from app import hub_pb2
+from app import hub_pb2_grpc
 import uvicorn
 
 from . import models
 from .events import consume_events
 from .subscribers import SUBSCRIBERS
 from .db import agents_collection, tasks_collection
+
+from .routes.projects import router as projects_router
 
 router = fastapi.APIRouter()
 
@@ -92,7 +94,7 @@ async def lifespan(app):
 
 def main():
     uvicorn.run(
-        'server.main:app',
+        'app.main:app',
         port=5011,
         reload=True,
         timeout_graceful_shutdown=0.5,
@@ -101,6 +103,8 @@ def main():
 
 app = fastapi.FastAPI(lifespan=lifespan)
 app.include_router(router)
+app.include_router(projects_router)
+
 
 if __name__ == '__main__':
     main()

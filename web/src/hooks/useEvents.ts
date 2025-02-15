@@ -43,10 +43,17 @@ interface Task {
     outputs?: any;
 }
 
-interface Method {
+interface Field {
+    name: string;
+    type: string;
+    args?: Field[];
+}
+
+export interface Method {
     name: string;
     description?: string;
     inputs: Input[];
+    outputs: Field[];
 }
 
 export enum AgentStatus {
@@ -129,9 +136,15 @@ interface TaskUpdatedData {
 
 export const useEvents = () => {
     const [connectionState, setConnectionState] = useState<ConnectionStateEnum>(ConnectionStateEnum.disconnected);
-    const { addTask, updateTaskStatus, updateTaskOutputs, updateAgentStatus, addOrUpdateAgentActivity } = useAgents();
+    const { addTask, updateTaskStatus, updateTaskOutputs, updateAgentStatus, addOrUpdateAgentActivity, setAgents } = useAgents();
 
     const sockRef = useRef<WebSocket | null>();
+
+    useEffect(() => {
+        fetch('/api/agents')
+        .then(e => e.json())
+        .then(agents => setAgents(agents.map((e: any) => ({ ...e, tasks: [] }))))
+    }, []);
 
     useEffect(() => {
         const handleOpen = (e: any) => {
@@ -194,3 +207,5 @@ export const useEvents = () => {
         connectionState
     };
 }
+
+

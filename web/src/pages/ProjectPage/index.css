@@ -1,0 +1,11 @@
+.react-flow__node {
+    /* user-select: text; */
+}
+
+.react-flow__node.draggable {
+    cursor: auto;
+}
+
+.custom:hover {
+    background-color: lightgrey !important;
+}

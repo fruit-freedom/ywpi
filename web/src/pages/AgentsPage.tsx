@@ -3,7 +3,8 @@ import {
     Typography, Box, Chip, Paper,
     SpeedDial, Button, Accordion,
     AccordionSummary, AccordionDetails,
-    Divider, TextareaAutosize, TextField
+    Divider, TextareaAutosize, TextField,
+    Stack
 } from "@mui/material";
 import styled from "@mui/material/styles/styled";
 import ForwardOutlinedIcon from '@mui/icons-material/ForwardOutlined';
@@ -12,6 +13,9 @@ import { Agent, Method, Task, useAgents } from "../store/store";
 import { ConnectionStateEnum, useEvents } from "../hooks/useEvents";
 import StatusIndicator, { IndicatorColor } from "../components/StatusIndicator";
 import MethodCard from "../components/MethodCard/MethodCard";
+
+import Markdown from "react-markdown";
+import SyntaxHighlighter from 'react-syntax-highlighter';
 
 enum EventType {
     AgentConnected = 'agent.connected',
@@ -82,12 +86,43 @@ const TaskCard = ({ task }: TaskCardProps) => {
                     <Typography variant='subtitle1' fontWeight={800}>Outputs</Typography>
                     {
                         task.outputs ?
-                        Object.entries(task.outputs).map((k) => (
-                            <Box key={k[0]} display={'flex'} gap={2}>
-                                <Typography fontWeight={600}>{k[0]}</Typography>
-                                <Typography>{k[1] as any}</Typography>
-                            </Box>
-                        ))
+                        Object.entries(task.outputs).map(e => {
+                            return (
+                                <Stack>
+                                    <Typography fontWeight={700}>{e[0]}</Typography>
+                                    {
+                                        typeof e[1] === 'string'
+                                        ?
+                                        <Markdown
+                                        components={{
+                                            code(props) {
+                                                const {children, className, node, ...rest} = props;
+                                                const match = /language-(\w+)/.exec(className || '');
+                                                return (match ?
+                                                    <SyntaxHighlighter
+                                                        {...rest}
+                                                        PreTag="div"
+                                                        children={String(children).replace(/\n$/, '')}
+                                                        language={match[1]}
+                                                    />
+                                                    :
+                                                    <code {...rest} className={className}>
+                                                        {children}
+                                                    </code>
+                                                )
+                                            }
+                                        }}
+                                        >
+                                            {e[1]}
+                                        </Markdown>
+                                        :
+                                        <Typography whiteSpace={' '}>
+                                            {JSON.stringify(e[1], null, 2)}
+                                        </Typography>
+                                    }
+                                </Stack>
+                            )
+                        })
                         : null
                     }
                 </Box>
@@ -101,11 +136,11 @@ export default () => {
     const { agents, setAgents, activeAgentIndex, activeAgentMethodIndex, setTasks } = useAgents();
     const { connectionState } = useEvents();
 
-    useEffect(() => {
-        fetch('/api/agents')
-        .then(e => e.json())
-        .then(agents => setAgents(agents.map((e: any) => ({ ...e, tasks: [] }))))
-    }, []);
+    // useEffect(() => {
+    //     fetch('/api/agents')
+    //     .then(e => e.json())
+    //     .then(agents => setAgents(agents.map((e: any) => ({ ...e, tasks: [] }))))
+    // }, []);
 
     const tasks = useMemo(() => {
         if (activeAgentIndex !== null) {

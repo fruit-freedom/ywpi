@@ -36,7 +36,8 @@ async def get_tasks(agent_id: str = None) -> list[models.Task]:
     if agent_id is not None:
         find_expr.update({ 'agent_id': agent_id })
 
-    return await tasks_collection.find(find_expr).to_list(1024)
+    # Await hub's generated partly ordered ObjectID
+    return await tasks_collection.find(find_expr).sort('_id', -1).limit(20).to_list(1024)
 
 
 @router.get('/api/agents')

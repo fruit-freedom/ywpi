@@ -6,7 +6,7 @@ import os
 import watchfiles
 
 import ywpi
-
+from ywpi.logger import logger
 
 parser = argparse.ArgumentParser()
 parser.add_argument('command', choices=['run'])
@@ -32,9 +32,13 @@ def perform_run_command(args):
 def main():
     args = parser.parse_args()
 
+    def callback(e):
+        path = os.path.relpath(next(iter(e))[1], os.getcwd())
+        logger.warning(f"WatchFiles detected changes in '{path}'. Reloading...")
+
     if args.command == 'run':
         if args.reload:
-            watchfiles.run_process('.', target=perform_run_command, args=(args,))
+            watchfiles.run_process('', target=perform_run_command, args=(args,), callback=callback)
         else:
             perform_run_command(args)
 

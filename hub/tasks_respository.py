@@ -2,6 +2,7 @@ import typing
 import dataclasses
 import uuid
 import asyncio
+from bson import ObjectId
 
 from .events.repository import repository as events
 from .events import models as events_models
@@ -25,7 +26,10 @@ class TaskRepository:
         This method required due to groupd buisness logic without async context.
         It is required due to atomic nature of `add_with_tracking` method
         """
-        id = str(uuid.uuid4())
+
+        # ObjectId is ordered but there are could be problems with dublication
+        # if multiple hubs are running
+        id = str(ObjectId())
         task = TaskDescription(
             id=id,
             agent_id=agent_id,
@@ -76,9 +80,11 @@ class TaskRepository:
         if status in ('completed', 'failed', 'aborted'):
             task = self._tasks.pop(id)
 
-            fut = self._tracked_tasks.pop(id)
-            if not fut.cancelled():
-                fut.set_result(task)
+            # If task tracked (has future waiter)
+            if id in self._tracked_tasks:
+                fut = self._tracked_tasks.pop(id)
+                if not fut.cancelled():
+                    fut.set_result(task)
         else:
             self._tasks[id].status = status
             task = self._tasks[id]

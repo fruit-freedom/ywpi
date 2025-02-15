@@ -49,6 +49,7 @@ class UpdateTaskRequest(pydantic.BaseModel):
     id: str
     status: str | None = None
     outputs: dict | None = None
+    inputs: dict | None = None
 
 
 class UpdateTaskResponse(pydantic.BaseModel):

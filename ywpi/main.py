@@ -20,6 +20,8 @@ from . import settings
 from ywpi import Spec, MethodDescription, RegisteredMethod, REGISTERED_METHODS
 from ywpi.handle_args import handle_args, InputTyping
 from ywpi.serialization import handle_outputs
+from .stream import Stream
+from .io_manager import IOManager
 
 class Channel:
     def __init__(self):
@@ -51,52 +53,52 @@ class Channel:
 
 
 # Service level
-class ServiceServer:
-    def __init__(self, agent_cls, exchanger: 'Exchanger' = None) -> None:
-        self.agent_cls = agent_cls
-        self.thread_pool = futures.ThreadPoolExecutor(max_workers=1)
+# class ServiceServer:
+#     def __init__(self, agent_cls, exchanger: 'Exchanger' = None) -> None:
+#         self.agent_cls = agent_cls
+#         self.thread_pool = futures.ThreadPoolExecutor(max_workers=1)
 
-        self.methods: list[models.Method] = []
-        self.calls: dict[str, typing.Callable] = {}
-        self.exchanger = exchanger
+#         self.methods: list[models.Method] = []
+#         self.calls: dict[str, typing.Callable] = {}
+#         self.exchanger = exchanger
 
-        for name, description in self.agent_cls.__dict__[Spec.CLASS_API_METHODS.value].items():
-            description: MethodDescription
-            self.methods.append(hub_models.Method(
-                name=name,
-                inputs=[
-                    hub_models.InputDescription(name=param.name, type=ServiceServer.TYPE_TO_YWPI[param.annotation])
-                    for param in description.parameters
-                ]
-            ))
-            self.calls[name] = self.agent_cls.__dict__[name]
+#         for name, description in self.agent_cls.__dict__[Spec.CLASS_API_METHODS.value].items():
+#             description: MethodDescription
+#             self.methods.append(hub_models.Method(
+#                 name=name,
+#                 inputs=[
+#                     hub_models.InputDescription(name=param.name, type=ServiceServer.TYPE_TO_YWPI[param.annotation])
+#                     for param in description.parameters
+#                 ]
+#             ))
+#             self.calls[name] = self.agent_cls.__dict__[name]
 
-    @staticmethod
-    def _method_wrapper(task_id: str, exchanger: 'Exchanger', method, **kwargs):
-        try:
-            staticgenerator = isinstance(method, staticmethod) and inspect.isgeneratorfunction(method.__func__)
-            if inspect.isgeneratorfunction(method) or staticgenerator:
-                for outputs in method(**kwargs):
-                    exchanger.call_update_task(hub_models.UpdateTaskRequest(id=task_id, outputs=outputs))
-            else:
-                method(**kwargs)
-                status = 'completed'
-        except BaseException as e:
-            import traceback
-            print(traceback.format_exc())
-            logger.warning('method raise exception')
-            status = 'failed'
-        finally:
-            exchanger.call_update_task(hub_models.UpdateTaskRequest(id=task_id, status=status))
+#     @staticmethod
+#     def _method_wrapper(task_id: str, exchanger: 'Exchanger', method, **kwargs):
+#         try:
+#             staticgenerator = isinstance(method, staticmethod) and inspect.isgeneratorfunction(method.__func__)
+#             if inspect.isgeneratorfunction(method) or staticgenerator:
+#                 for outputs in method(**kwargs):
+#                     exchanger.call_update_task(hub_models.UpdateTaskRequest(id=task_id, outputs=outputs))
+#             else:
+#                 method(**kwargs)
+#                 status = 'completed'
+#         except BaseException as e:
+#             import traceback
+#             print(traceback.format_exc())
+#             logger.warning('method raise exception')
+#             status = 'failed'
+#         finally:
+#             exchanger.call_update_task(hub_models.UpdateTaskRequest(id=task_id, status=status))
 
-    def call_method(self, exchanger: 'Exchanger', task_id: str, method: str, params: dict[str, typing.Any]):
-        self.thread_pool.submit(ServiceServer._method_wrapper, task_id, exchanger, self.calls[method], **params)
+#     def call_method(self, exchanger: 'Exchanger', task_id: str, method: str, params: dict[str, typing.Any]):
+#         self.thread_pool.submit(ServiceServer._method_wrapper, task_id, exchanger, self.calls[method], **params)
 
-    TYPE_TO_YWPI = {
-        int: 'int',
-        str: 'str',
-        float: 'float'
-    }
+#     TYPE_TO_YWPI = {
+#         int: 'int',
+#         str: 'str',
+#         float: 'float'
+#     }
 
 
 class SimpleMethodExecuter:
@@ -106,6 +108,10 @@ class SimpleMethodExecuter:
         self.calls: dict[str, typing.Callable] = {}
         self.methods: list[hub_models.Method] = []
         self.method_input_dicts: dict[str, dict[str, InputTyping]] = {}
+
+        # TaskID -> IOManager
+        self._io_managers: dict[str, IOManager] = {}
+        self._io_managers_lock = threading.Lock()
 
         for name, registered_method in registered_methods.items():
             self.methods.append(hub_models.Method(
@@ -123,54 +129,62 @@ class SimpleMethodExecuter:
             self.calls[name] = registered_method.fn
             self.method_input_dicts[name] = registered_method.inputs
 
+    def _perform_task_cleanup(self, task_id: str):
+        logger.debug(f'Perform cleaup for task "{task_id}"')
+        with self._io_managers_lock:
+            self._io_managers.pop(task_id, None)
+
     @staticmethod
     def _method_wrapper(
-        task_id: str,
-        exchanger: 'Exchanger',
+        io_manager: IOManager,
+        executer: 'SimpleMethodExecuter',
         method,
-        inputs,
-        inputs_dict
+        kwargs
     ):
+        final_outputs = None
+        final_status = 'failed'
         try:
-            kwargs = handle_args(inputs, inputs_dict)
             staticgenerator = isinstance(method, staticmethod) and inspect.isgeneratorfunction(method.__func__)
             if inspect.isgeneratorfunction(method) or staticgenerator:
                 for outputs in method(**kwargs):
                     try:
-                        exchanger.call_update_task(
-                            hub_models.UpdateTaskRequest(id=task_id, outputs=handle_outputs(outputs))
-                        )
+                        io_manager.handle_outputs(outputs)
                     except TypeError as e:
                         logger.warning(f'Outputs serializations error: {e.args}')
             else:
-                outputs = method(**kwargs)
-                if outputs is not None:
-                    # TODO: Join update status & update outputs events 
-                    exchanger.call_update_task(hub_models.UpdateTaskRequest(id=task_id, outputs=handle_outputs(outputs)))
-            status = 'completed'
+                final_outputs = method(**kwargs)
+                final_status = 'completed'
         except BaseException as e:
-            import traceback
-            print(traceback.format_exc())
             logger.warning('method raise exception')
-            status = 'failed'
+            final_status = 'failed'
         finally:
-            exchanger.call_update_task(hub_models.UpdateTaskRequest(id=task_id, status=status))
+            io_manager.update_task_status(final_status, final_outputs)
+            executer._perform_task_cleanup(io_manager.task_id)
+
+    def update_task_inputs(self, task_id: str, inputs: dict):
+        with self._io_managers_lock:
+            if task_id in self._io_managers:
+                self._io_managers[task_id].update_inputs(inputs)
+            else:
+                logger.warning(f'Task "{task_id}" does not has io manager and could not be updated')
 
     def call_method(self, exchanger: 'Exchanger', task_id: str, method: str, inputs: dict[str, typing.Any]):
         exchanger.call_update_task(hub_models.UpdateTaskRequest(id=task_id, status='started'))
+        io_manager = IOManager(task_id, self.method_input_dicts[method], exchanger)
+        params = io_manager.handle_inputs(inputs)
+
         self.thread_pool.submit(
             SimpleMethodExecuter._method_wrapper,
-            task_id,
-            exchanger,
+            io_manager,
+            self,
             self.calls[method],
-            inputs,
-            self.method_input_dicts[method]
+            params
         )
 
 
 # Communication level
 class Exchanger:
-    def __init__(self, input_channel, output_channel: Channel, service: 'ServiceServer', agent_id = None) -> None:
+    def __init__(self, input_channel, output_channel: Channel, service: 'SimpleMethodExecuter', agent_id = None) -> None:
         self.agent_id = agent_id
         self.incoming_requests: dict[str, futures.Future] = {}
         self.outgoings_requests: dict[str, futures.Future] = {}
@@ -215,6 +229,18 @@ class Exchanger:
         self.service.call_method(self, payload.id, payload.method, payload.params)
         return hub_models.StartTaskResponse(status=status)
 
+    def _rpc_update_task(self, payload: hub_models.UpdateTaskRequest) -> hub_models.UpdateTaskResponse:
+        """
+        Hub can update task status (task abort) & inputs (streaming)
+        """
+        if payload.inputs is None:
+            raise TypeError('inputs should be specified')
+
+        if payload.status is not None:
+            raise NotImplementedError()
+
+        self.service.update_task_inputs(payload.id, payload.inputs)
+
     def _handle_request(self, reply_to: str, request: hub_pb2.RequestMessage):
         try:
             if request.rpc == hub_pb2.Rpc.RPC_START_TASK:
@@ -230,6 +256,8 @@ class Exchanger:
             else:
                 logger.warning(f'Method {hub_pb2.Rpc.Name(request.rpc)} not implemented')
         except BaseException as e:
+            import traceback
+            traceback.print_exc()
             self._write_response_message(
                 reply_to,
                 error=str(e)
@@ -276,44 +304,8 @@ class Exchanger:
         return self.call(hub_pb2.Rpc.RPC_UPDATE_TASK, payload.model_dump_json())
 
 
-def get_agent_id():
-    if len(sys.argv) > 1:
-        return sys.argv[1]
-    return 'a-1'
-
-
-def serve_class(cls):
-    service = ServiceServer(cls)
-    with grpc.insecure_channel(settings.YWPI_HUB_HOST) as grpc_channel:
-        greeter_stub = hub_pb2_grpc.HubStub(grpc_channel)
-        output_channel = Channel()
-        response_iterator = greeter_stub.Connect(iter(output_channel))
-
-        hello_message = hub_models.RegisterAgentRequest(
-            id=get_agent_id(),
-            name=cls.__name__,
-            methods=service.methods
-        )
-
-        try:
-            exchanger = Exchanger(response_iterator, output_channel, service)
-            result = exchanger.call_register_agent(hello_message)
-            good = result.result()
-            if good.HasField('error'):
-                logger.error(f'Agent register failed: {good.error}')
-                raise Exception()
-
-            logger.info('Connected to hub localhost:50051')
-            exchanger.finish.result()
-        except KeyboardInterrupt:
-            pass
-        finally:
-            output_channel.close()
-
-
-
 def serve(
-    id: str = None,
+    id: str,
     name: str = 'Untitled',
     description: str = 'No description provided',
     project: str = settings.YWPI_PROJECT_NAME,
@@ -325,7 +317,7 @@ def serve(
         response_iterator = greeter_stub.Connect(iter(output_channel))
 
         hello_message = hub_models.RegisterAgentRequest(
-            id=id if id is not None else get_agent_id(),
+            id=id,
             name=name,
             project=project,
             description=description,
@@ -346,9 +338,3 @@ def serve(
             pass
         finally:
             output_channel.close()
-
-
-
-
-
-

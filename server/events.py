@@ -31,6 +31,10 @@ async def handle_event(event: models.Event):
                         f'outputs.{k}': v
                         for k, v in data.outputs.items()
                 }})
+            if data.status is not None:
+                tasks_collection.update_one({ '_id': id }, { '$set': {
+                        'status': data.status
+                }})
             # tasks_collection.update_one({ '_id': id }, { '$push': data.outputs })
         elif kind == 'completed':
             data = models.TaskCompletedData(**event.data)

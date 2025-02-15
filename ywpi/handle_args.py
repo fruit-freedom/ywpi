@@ -3,6 +3,7 @@ import typing as t
 import inspect
 
 from ywpi import types as ytypes
+# from ywpi.stream import Stream
 
 TYPE_NAMES = {
     str: 'str',
@@ -10,7 +11,8 @@ TYPE_NAMES = {
     float: 'float',
     ytypes.Text: 'text',
     bytes: 'bytes',
-    ytypes.Image: 'image'
+    ytypes.Image: 'image',
+    # Stream: 'stream'
 }
 
 
@@ -32,13 +34,18 @@ def cvt_ref(value):
     ref = value['ref']
     return ytypes.Ref()
 
+# def handle_stream(data: dict | list):
+#     if isinstance(data, list):
+#         return Stream(init_items=data)
+#     return Stream(init_items=[data])
 
 DESERIALIZERS: dict[t.Any, t.Callable] = {
     str: lambda v: v,
     int: lambda v: int(v),
     float: lambda v: float(v),
     ytypes.Image: cvt_image,
-    ytypes.Text: lambda v: str(v)
+    ytypes.Text: lambda v: str(v),
+    # Stream: handle_stream
 }
 
 
@@ -84,6 +91,9 @@ def get_input_dict(fn) -> dict[str, InputTyping]:
             if (source_tp, target_tp) not in TYPE_CONVERTERS:
                 raise TypeError(f'no avalible conversation from {source_tp} to {target_tp}')
 
+            if t.get_origin(source_tp) is not None:
+                source_tp = t.get_origin(source_tp)
+
             inputs_dict[name] = InputTyping(
                 name=TYPE_NAMES[source_tp],
                 source_tp=source_tp,
@@ -92,8 +102,12 @@ def get_input_dict(fn) -> dict[str, InputTyping]:
             )
         else:
             target_tp = tp
+            # TODO: There probaly required deserialize subtypes (generic args)
+            if t.get_origin(target_tp) is not None:
+                target_tp = t.get_origin(target_tp)
+
             if target_tp in DESERIALIZERS:
-                source_tp = tp
+                source_tp = target_tp
                 inputs_dict[name] = InputTyping(
                     name=TYPE_NAMES[source_tp],
                     source_tp=target_tp,
@@ -105,15 +119,29 @@ def get_input_dict(fn) -> dict[str, InputTyping]:
     return inputs_dict
 
 
-def handle_args(data, inputs: dict[str, InputTyping]):
+def handle_args(data: dict, inputs: dict[str, InputTyping], ctx: dict = {}):
+    """
+    Description:
+        Convert `data` in Referenced JSON format to Python dictionary using `schema`.
+        This process include:
+            - Type conversation during `typing.Annotated` annotation
+            - File downloading (If ywpi reference used)
+            - Stream creation
+        Create streams if required.
+
+    Returns:
+        Converted data.
+    """
     result_args = {}
     for name, input in inputs.items():
         if name not in data:
+            # TODO: Ignore if input type is `ywpi.Stream`
             if input.optional:
                 continue
             raise KeyError(f'argument {name} does not present in inputs')
         raw_value = data[name]
-        value = DESERIALIZERS[input.source_tp](raw_value)
+        source_tp = t.get_origin(input.source_tp) if t.get_origin(input.source_tp) is not None else input.source_tp
+        value = DESERIALIZERS[source_tp](raw_value)
 
         if input.source_tp is not input.target_tp:
             value = TYPE_CONVERTERS[(input.source_tp, input.target_tp)](value)

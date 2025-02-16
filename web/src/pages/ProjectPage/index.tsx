@@ -96,10 +96,57 @@ const fetchBoard = (projectId: string): Promise<Board> => {
         })
 }
 
-const saveResults = debounce((nodes) => {
+// const update = debounce((event) => {
+//     console.log('event', event)
+// }, 1000);
 
-}, 1000);
 
+const customDebounce = () => {
+    const timeouts = new Map();
+
+    return (events: any[]) => {
+        events
+            .filter(e => e.type === 'position')
+            .forEach(e => {
+                const nodeId = e.id;
+                const event = e;
+                if (timeouts.has(nodeId)) {
+                    timeouts.get(nodeId).event = event;
+                }
+                else {
+                    timeouts.set(nodeId, {
+                        event,
+                        timeout: setTimeout(() => {
+                            const { event } = timeouts.get(nodeId)
+                            timeouts.delete(nodeId);
+
+                            fetch(`/api/projects/projectId/nodes/${nodeId}`, {
+                                method: 'PATCH',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({
+                                    position: event.position,
+                                })
+                            })
+                            .then(e => console.log(e))
+                            .catch(e => console.log(e))
+                            console.log('Update', event)
+                        }, 1000)
+                    })
+                }
+            })
+    }
+}
+
+const update = customDebounce();
+
+const saveChange = (event: any) => {
+    const positionUpdates = event.filter(e => e.type === 'position');
+    if (positionUpdates.length > 0) {   
+        update(positionUpdates)
+    }
+}
 
 // TODO: Optimize selection
 const removeSelection = () => {
@@ -162,9 +209,9 @@ export default () => {
     //     saveResults()
     // }, [nodes])
 
-    const onNodesChangeS = (...args) => {
-        onNodesChange(...args);
-        saveResults(nodes)
+    const onNodesChangeS = (event) => {
+        onNodesChange(event);
+        saveChange(event);
     }
 
     return (
@@ -186,15 +233,31 @@ export default () => {
                 }}
                 onPaste={e => {
                     console.log(e)
-                    // @ts-ignore
-                    setNodes(nodes => [...nodes, {
-                        id: `clipboard-${Math.random().toString()}`,
-                        type: 'text',
-                        data: { text: e.clipboardData.getData('Text') },
-                        position: { x: 800, y: 700 },
-                        targetPosition: 'left',
-                        dragHandle: '.custom',
-                    }])
+                    fetch(`/api/projects/${projectId}/nodes`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            id: `clipboard-${Math.random().toString()}`,
+                            text: e.clipboardData.getData('Text'),
+                            position: { x: 800, y: 700 },
+                        })
+                    })
+                    .then(e => e.json())
+                    .then(e => {
+                        // TODO: may be switch to UUID as node ID
+                        // @ts-ignore
+                        setNodes(nodes => [...nodes, {
+                            id: e.id,
+                            type: 'text',
+                            data: e.data,
+                            position: { x: 800, y: 700 },
+                            targetPosition: 'left',
+                            dragHandle: '.custom',
+                        }])
+                    })
+                    .catch(e => console.log(e))
                 }}
                 style={{ background: '#efefef' }}
                 nodeTypes={nodeTypes}

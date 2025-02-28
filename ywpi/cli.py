@@ -13,6 +13,7 @@ parser.add_argument('command', choices=['run'])
 parser.add_argument('target', help='Path to launch target. Example: agents.test:func')
 parser.add_argument('--id', type=str, help='Agent id', default='ywpi-run')
 parser.add_argument('--name', type=str, help='Agent name', default='Untitled')
+parser.add_argument('--project', type=str, help='Project ID')
 parser.add_argument('--reload', action='store_true', help='Enable auto reloading', default=False)
 
 
@@ -26,7 +27,10 @@ def perform_run_command(args):
     if len(method) > 0:
         ywpi.method(module.__dict__[method])
 
-    ywpi.serve(args.id, args.name)
+    kwargs = {}
+    if args.project is not None: kwargs['project'] = args.project
+
+    ywpi.serve(args.id, args.name, **kwargs)
 
 
 def main():

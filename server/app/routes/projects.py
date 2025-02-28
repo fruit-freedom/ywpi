@@ -20,6 +20,7 @@ class Position(pydantic.BaseModel):
 class Node(pydantic.BaseModel):
     id: PyObjectId = pydantic.Field(alias='_id', serialization_alias='id', default=None)
     project_id: PyObjectId = pydantic.Field(alias='_id', serialization_alias='id')
+    object_id: t.Optional[PyObjectId] = None
     type: str
     data: dict
     position: Position
@@ -103,56 +104,11 @@ async def delete_project(project_id: str):
 #     return Space(items=items)
 
 
-@router.get('/api/projects/{project_id}/board')
+@router.get('/api/projects/{project_id}/board', tags=['node'])
 async def get_project_board(project_id: str) -> Board:
     nodes = await nodes_collection.find({ 'project_id': ObjectId(project_id) }).to_list(None)
     return Board(
         nodes=nodes,
-        # nodes=[
-        #     Node(
-        #         _id='1',
-        #         type='text',
-        #         position=Position(x=0, y=0),
-        #         data={
-        #             'text': '''3. Extract Phase
-        #                 - Identify Data Sources: Determine where your data will come from (e.g., databases, APIs, flat files, etc.).
-        #                 - Data Extraction Mechanism: Use connectors, drivers, or APIs to retrieve data. Ensure you handle authentication if needed.
-        #                 - Incremental vs Full Extract: Decide whether to extract full datasets or only changes (incremental loading).
-        #                 - Schedule Extraction: Set up a schedule for data extraction based on business needs.'''
-        #         }
-        #     ),
-        #     Node(
-        #         _id='2',
-        #         type='text',
-        #         position=Position(x=500, y=500),
-        #         data={
-        #             'text': '''4. Transform Phase
-        #             - Data Cleaning: Remove duplicates, handle missing values, and ensure data types are consistent.
-        #             - Data Transformation: Apply the necessary transformations based on business rules
-        #                 (e.g., aggregations, calculations, data type conversions).
-        #             - Data Enrichment: Combine data from various sources to enhance its value and provide a more comprehensive view.'''
-        #         }
-        #     ),
-        #     Node(
-        #         _id='3',
-        #         type='json',
-        #         position=Position(x=100, y=500),
-        #         data={
-        #             'total_time': 0.34,
-        #             'method': 'rebase'
-        #         }
-        #     ),
-        #     Node(
-        #         _id='doc1',
-        #         type='pdf',
-        #         data={
-        #             'name': 'Reqo: A Robust and Explainable Query Optimization Cost Model',
-        #             'src': 'https://arxiv.org/pdf/2501.17414'
-        #         },
-        #         position=Position(x=300, y=300 ),
-        #         targetPosition='left',
-        #     ),
-        # ],
         edges=[]
     )
 
@@ -163,13 +119,41 @@ async def create_node(
     position: t.Annotated[Position, fastapi.Body()],
     project_id: str
 ) -> Node:
+    
+    from app.routes.objects import create_object
+
+    obj = await create_object(project_id, 'text', data={ 'text': text })
+
     result = await nodes_collection.insert_one({
         'project_id': ObjectId(project_id),
+        'object_id': ObjectId(obj.id),
         'type': 'text',
         'data': {
             'text': text
         },
         'position': position.model_dump(mode='json')
+    })
+
+    return await nodes_collection.find_one({ '_id': result.inserted_id })
+
+
+@router.post('/api/v2/projects/{project_id}/nodes', tags=['node'])
+async def create_node(
+    project_id: str,
+    type: t.Annotated[str, fastapi.Body()],
+    data: t.Annotated[dict, fastapi.Body()],
+    position: t.Annotated[Position, fastapi.Body()],
+) -> Node:
+    
+    from app.routes.objects import create_object
+    created_object = await create_object(project_id, type, data)
+
+    result = await nodes_collection.insert_one({
+        'project_id': ObjectId(project_id),
+        'type': type,
+        'data': data,
+        'position': position.model_dump(mode='json'),
+        'object_id': ObjectId(created_object.id)
     })
 
     return await nodes_collection.find_one({ '_id': result.inserted_id })
@@ -190,4 +174,6 @@ async def update_node(
     })
     if result.matched_count <= 0:
         raise fastapi.HTTPException(status_code=404)
+
+# Create object always and optionally node
 

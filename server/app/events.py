@@ -7,6 +7,26 @@ from .db import agents_collection, tasks_collection
 from .subscribers import SUBSCRIBERS
 from . import models
 
+from .db import objects_collection
+from app.routes.objects import create_object, Relation
+
+
+async def create_objects_from_event_data(data: models.TaskUpdatedData):
+    agent: dict = await agents_collection.find_one({ 'id': data.agent_id }, { 'project': 1 })
+    task: dict = await tasks_collection.find_one({ '_id': data.id }, { 'borrowed_fields': 1 })
+
+    if data.outputs is not None:
+        for key, value in data.outputs.items():
+            try:
+                if isinstance(value, str):
+                    await create_object(agent['project'], 'text', { 'text': value }, relations=[
+                        Relation(object_id=rel_input['object_id'], name=rel_input['path'])
+                        for rel_input in task.get('borrowed_fields', {}).values()
+                    ])
+            except Exception as e:
+                print(e)
+
+
 async def handle_event(event: models.Event):
     domain, kind = event.type.value.split('.')
     if domain == 'agent':
@@ -20,8 +40,12 @@ async def handle_event(event: models.Event):
         if kind == 'created':
             data = models.TaskCreatedData(**event.data)
             data = data.model_dump(mode='json')
-            data['_id'] = data.pop('id')
-            tasks_collection.insert_one(data)
+
+            id = data.pop('id')
+            tasks_collection.update_one({ '_id': id }, {
+                '$set': data
+            }, upsert=True)
+
         elif kind == 'updated':
             data = models.TaskUpdatedData(**event.data)
             update = data.model_dump(mode='json', exclude_none=True)
@@ -35,7 +59,7 @@ async def handle_event(event: models.Event):
                 tasks_collection.update_one({ '_id': id }, { '$set': {
                         'status': data.status
                 }})
-            # tasks_collection.update_one({ '_id': id }, { '$push': data.outputs })
+            await create_objects_from_event_data(data)
         elif kind == 'completed':
             data = models.TaskCompletedData(**event.data)
             update = data.model_dump(mode='json', exclude_none=True)

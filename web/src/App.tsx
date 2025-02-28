@@ -14,6 +14,7 @@ import { RetrievePage } from './pages/RetrievePage/RetrievePage';
 import ProjectPage from './pages/ProjectPage';
 import { QueryClient, QueryClientProvider } from 'react-query';
 import ProjectsPage from './pages/ProjectsPage';
+import { TestPage } from "./pages/TestPage.tsx";
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
     'pdfjs-dist/build/pdf.worker.min.mjs',
@@ -62,6 +63,10 @@ const router = createBrowserRouter([
             {
                 path: '/projects/:projectId',
                 element: <ProjectPage />
+            },
+            {
+                path: '/ptest',
+                element: <TestPage />
             }
         ]
     }

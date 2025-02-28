@@ -7,24 +7,13 @@ import {
     Node
 } from '@xyflow/react';
 
-
-import Markdown from "react-markdown";
-import SyntaxHighlighter from "react-syntax-highlighter";
 import { Box, Stack, Typography } from "@mui/material";
 import { WithDragHandle } from "./WithDragHandle";
 
+import Markdown from "react-markdown";
+import SyntaxHighlighter from "react-syntax-highlighter";
 
 export const MarkdownNode = memo(({ data, isConnectable }: NodeProps) => {
-    const textRef = useRef(null);
-
-    // const handleTextSelection = () => {
-    //     const range = document.createRange();
-    //     range.selectNodeContents(textRef.current);
-    //     const selection = window.getSelection();
-    //     selection.removeAllRanges();
-    //     selection.addRange(range);
-    // };
-
     const elem = useMemo(() => {
         return (
             <Markdown
@@ -89,7 +78,7 @@ type TextNodeType = Node<{ text?: string; }>;
 
 export const TextNode = memo(({ data, isConnectable }: NodeProps<TextNodeType>) => {
     return (
-        <WithDragHandle>
+        <WithDragHandle tp={'text'} data={data}>
             <Stack padding={'1em'} border={'1px dashed grey'} alignItems={'center'} color={'grey'} maxWidth={'400px'}>
                 {
                     data.text ?

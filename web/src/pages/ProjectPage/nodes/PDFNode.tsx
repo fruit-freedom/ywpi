@@ -16,11 +16,12 @@ import { WithDragHandle } from "./WithDragHandle";
 
 type PDFNodeType = Node<{ name?: string, src?: string; }>;
 
+
 export const PDFNode = memo(({ data, isConnectable }: NodeProps<PDFNodeType>) => {
     const [open, setOpen] = useState(false);
 
     return (
-        <WithDragHandle>
+        <WithDragHandle tp="pdf">
             <Modal open={open} onClose={() => setOpen(false)} sx={{ overflow: 'scroll' }}>
                 <Stack
                     padding={'1em'}

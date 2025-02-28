@@ -140,22 +140,34 @@ const StartButton = styled(Button)({
     }
 })
 
+export interface BorrowedField {
+    path: string;
+    objectId: string;
+}
+
+export interface BorrowedFields {
+    [key: string]: BorrowedField;
+}
+
 interface MethodCardProps {
     agent: Agent;
     method: Method;
+    onStart?: () => void;
+    defaultValues?: any;
+    borrowedFields?: BorrowedFields;
 }
 
-interface StartMethodState {
-    inputs: any;
-}
 
-export default function MethodCard({ agent, method }: MethodCardProps) {
-    const { register, handleSubmit, setValue } = useForm();
+export default function MethodCard({ agent, method, onStart, defaultValues, borrowedFields }: MethodCardProps) {
+    const { register, handleSubmit, setValue } = useForm({ defaultValues });
     const [data, setData] = useState("");
+
+    console.log('asda', borrowedFields)
 
     const handleStartTask = (data: any) => {
         console.log(data);
         setData(JSON.stringify(data));
+
         fetch('/api/tasks', {
             method: 'POST',
             headers: {
@@ -165,11 +177,14 @@ export default function MethodCard({ agent, method }: MethodCardProps) {
                 agent_id: agent.id,
                 method: method.name,
                 inputs: data,
-            })
+                borrowed_fields: borrowedFields
+            }, (key, value) => { if (value !== null) return value })
         })
         .then(e => e.json())
         .then(e => console.log(e))
-        .catch(e => console.log(e))
+        .catch(e => console.log(e));
+
+        onStart?.();
     };
 
     return (
@@ -190,7 +205,8 @@ export default function MethodCard({ agent, method }: MethodCardProps) {
                                         <Typography fontWeight={800} variant='subtitle1' >{e.name}:</Typography>
                                         <Typography variant='subtitle1' fontStyle={'italic'}>{e.type}</Typography>
                                         <Typography variant='body2' color='grey' padding={'0 0.5em'} maxWidth={'30em'}>
-                                            Files for processing using prompt. Multiple files will be processed independenlty.
+                                            {/* Files for processing using prompt. Multiple files will be processed independenlty. */}
+                                            Annotation will be there later.
                                         </Typography>
                                     </Box>
                                 </Box>

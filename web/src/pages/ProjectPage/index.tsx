@@ -1,4 +1,4 @@
-import { Box, debounce, Divider, Typography } from "@mui/material"
+import { Box, debounce, Divider, Stack, Typography } from "@mui/material"
 import React, { useState, useEffect, useCallback, useRef} from 'react';
 import {
     ReactFlow,
@@ -15,6 +15,10 @@ import './index.css'
 import { nodeTypes } from "./nodes";
 import { useQuery } from "react-query";
 import { useParams } from "react-router-dom";
+import { BoardSidebar } from "./components/BoardSidebar";
+import { Agent, useAgents } from "../../store/store";
+import { AgentStatus, useEvents } from "../../hooks/useEvents";
+import { MethodWithAgentId, useMethods } from "./store/methods";
 
 const defaultViewport = { x: 0, y: 0, zoom: 1.5 };
 
@@ -91,14 +95,12 @@ const fetchBoard = (projectId: string): Promise<Board> => {
         .then((data: Board) => {
             return {
                 ...data,
-                nodes: data.nodes.map(e => ({ ...e, dragHandle: '.custom' }))
+                // nodes: data.nodes.map(e => ({ ...e, dragHandle: '.custom' })),
+                // Inject additional meta props to data like objectId and projectId
+                nodes: data.nodes.map(e => ({ ...e, dragHandle: '.custom', data: { ...e.data, objectId: e.object_id } })),
             }
         })
 }
-
-// const update = debounce((event) => {
-//     console.log('event', event)
-// }, 1000);
 
 
 const customDebounce = () => {
@@ -158,12 +160,47 @@ const appendSelection = () => {
     document.querySelectorAll('.select-control').forEach(e => e.style.userSelect = 'text');
 }
 
+
+const buildSuitedTypeMethods = (agents: Agent[]): Map<string, MethodWithAgentId[]> => {
+    const methods = new Map<string, MethodWithAgentId[]>();
+
+    agents.forEach((agent, agent_idx) => {
+        if (agent.status !== AgentStatus.Connected)
+            return;
+
+        agent.methods.forEach((method, method_idx) => {
+            method.inputs.forEach(input => {
+                if (input.type === 'text') {
+                    if (!methods.has('text')) {
+                        methods.set('text', []);
+                    }
+                    methods.get('text')?.push({ ...method, agentId: agent.id })
+                }
+            })
+        });
+    });
+
+    return methods;
+}
+
+
 export default () => {
     const { projectId } = useParams();
 
     const [nodes, setNodes, onNodesChange] = useNodesState([]);
     const [edges, setEdges, onEdgesChange] = useEdgesState([]);
     const ref = useRef(null);
+
+    const { agents } = useAgents();
+    const { connectionState } = useEvents();
+    const { setMethods } = useMethods();
+
+    useEffect(() => {
+        const methods = buildSuitedTypeMethods(agents);
+        setMethods(methods);
+        console.log(methods);
+    }, [agents]);
+
     // const [menu, setMenu] = useState(null);
 
     // const onNodeContextMenu = useCallback((event, node) => {
@@ -215,7 +252,14 @@ export default () => {
     }
 
     return (
-        <Box padding={'0.4rem'} border={'1px solid black'} width={'100%'} height={'80vh'}>
+        <Box padding={'0.4rem'} border={'1px solid black'} width={'100%'} height={'80vh'} position={'relative'}>
+            <Box width={'10rem'} position={'absolute'} top={'0.4rem'} left={'0.4rem'} zIndex={999}>
+                {
+                    projectId ?
+                    <BoardSidebar projectId={projectId} />
+                    : null
+                }
+            </Box>
             <ReactFlow
                 ref={ref}
                 nodes={nodes}

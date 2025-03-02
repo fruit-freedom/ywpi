@@ -16,7 +16,7 @@ export default () => {
     })
 
     return (
-        <Box>
+        <Stack padding={'0 4rem'} gap={4}>
             <Typography fontWeight={700} variant="h4">Projects</Typography>
             <Stack direction={'row'} gap={1} flexWrap={'wrap'}>
                 {
@@ -35,6 +35,6 @@ export default () => {
                     )
                 }
             </Stack>
-        </Box>
+        </Stack>
     )
 }

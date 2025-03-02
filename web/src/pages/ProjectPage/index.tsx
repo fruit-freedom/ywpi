@@ -7,7 +7,8 @@ import {
     addEdge,
     Controls,
     Position,
-    useReactFlow
+    useReactFlow,
+    ReactFlowInstance
 } from '@xyflow/react';
 
 import '@xyflow/react/dist/style.css';
@@ -189,7 +190,7 @@ export default () => {
 
     const [nodes, setNodes, onNodesChange] = useNodesState([]);
     const [edges, setEdges, onEdgesChange] = useEdgesState([]);
-    const ref = useRef(null);
+    const ref = useRef<HTMLDivElement>(null);
 
     const { agents } = useAgents();
     const { connectionState } = useEvents();
@@ -246,10 +247,14 @@ export default () => {
     //     saveResults()
     // }, [nodes])
 
+    const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance>();
+
     const onNodesChangeS = (event) => {
         onNodesChange(event);
         saveChange(event);
     }
+
+    const mousePosition = useRef({ x: 0, y: 0 });
 
     return (
         <Box padding={'0.4rem'} border={'1px solid black'} width={'100%'} height={'80vh'} position={'relative'}>
@@ -271,21 +276,34 @@ export default () => {
                 onConnect={onConnect}
                 onConnectStart={removeSelection}
                 onConnectEnd={appendSelection}
-
+                onInit={(e) => {
+                    console.log('instance', e)
+                    setReactFlowInstance(e);
+                }}
                 onDrop={(e) => {
                     console.log(e)
                 }}
+                onMouseMove={(e) => { mousePosition.current = { x: e.clientX, y: e.clientY } }}
                 onPaste={e => {
-                    console.log(e)
+                    if (!ref.current || !reactFlowInstance) return;
+
+                    const bounds = ref.current.getBoundingClientRect();
+                    const position = reactFlowInstance.screenToFlowPosition({
+                        x: mousePosition.current.x - bounds.left,
+                        y: mousePosition.current.y - bounds.top
+                    });
+
                     fetch(`/api/projects/${projectId}/nodes`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
                         },
                         body: JSON.stringify({
-                            id: `clipboard-${Math.random().toString()}`,
-                            text: e.clipboardData.getData('Text'),
-                            position: { x: 800, y: 700 },
+                            tp: 'text',
+                            data: {
+                                text: e.clipboardData.getData('Text')
+                            },
+                            position,
                         })
                     })
                     .then(e => e.json())
@@ -295,8 +313,11 @@ export default () => {
                         setNodes(nodes => [...nodes, {
                             id: e.id,
                             type: 'text',
-                            data: e.data,
-                            position: { x: 800, y: 700 },
+                            data: {
+                                ...e.data,
+                                objectId: e.object_id,
+                            },
+                            position: position,
                             targetPosition: 'left',
                             dragHandle: '.custom',
                         }])

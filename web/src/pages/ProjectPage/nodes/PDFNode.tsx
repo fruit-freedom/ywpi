@@ -1,4 +1,4 @@
-import { memo, useState } from "react";
+import { useState } from "react";
 import { Document, Page } from 'react-pdf';
 import 'react-pdf/dist/Page/TextLayer.css';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
@@ -12,16 +12,14 @@ import {
 
 
 import { Chip, Modal, Stack, Typography } from "@mui/material";
-import { WithDragHandle } from "./WithDragHandle";
 
 type PDFNodeType = Node<{ name?: string, src?: string; }>;
 
-
-export const PDFNode = memo(({ data, isConnectable }: NodeProps<PDFNodeType>) => {
+export const PDFNode = ({ data, isConnectable }: NodeProps<PDFNodeType>) => {
     const [open, setOpen] = useState(false);
 
     return (
-        <WithDragHandle tp="pdf">
+        <>
             <Modal open={open} onClose={() => setOpen(false)} sx={{ overflow: 'scroll' }}>
                 <Stack
                     padding={'1em'}
@@ -64,6 +62,6 @@ export const PDFNode = memo(({ data, isConnectable }: NodeProps<PDFNodeType>) =>
                     isConnectable={isConnectable}
                 />
             </Stack>
-        </WithDragHandle>
+        </>
     );
-});
+};

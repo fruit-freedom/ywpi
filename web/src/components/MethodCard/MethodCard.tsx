@@ -1,13 +1,14 @@
 import React, { useState } from "react";
 import { Paper, TextField, Box, Typography, TextareaAutosize, Chip, Divider, Button } from "@mui/material";
 import styled from "@mui/material/styles/styled";
-import { useForm } from "react-hook-form";
+import { Control, Controller, useForm } from "react-hook-form";
 
 import { Agent, Method } from "../../store/store";
 
 interface InputProps {
     name: string;
     register: any;
+    control?: Control;
 }
 
 const StringInput = ({ register, name }: InputProps) => {
@@ -93,12 +94,36 @@ const FileInput = ({ register, name }: InputProps) => {
     )
 }
 
+const PDFInput = ({ register, name, control }: InputProps) => {
+    return (
+        <Box>
+            <Controller
+                name={name}
+                control={control}
+                render={({ field }) => (
+                    <TextareaAutosize
+                        value={JSON.stringify(field.value, null, 2)}
+                        onChange={(e) => {
+                            field.onChange(JSON.parse(e.target.value))
+                        }}
+                        minRows={8}
+                        style={{ width: '100%', borderColor: 'lightgray' }}
+                        placeholder="Use <text> as placeholder for patent text."
+                    />
+                )}
+            />
+        </Box>
+    )
+}
+
+
 const COMPONENTS = new Map([
     [ 'int', NumberInput ],
     [ 'float', NumberInput ],
     [ 'str', StringInput ],
     [ 'text', TextInput ],
-    [ 'file', FileInput ]
+    [ 'file', FileInput ],
+    [ 'pdf', PDFInput ]
 ]);
 
 interface Input {
@@ -159,11 +184,11 @@ interface MethodCardProps {
 
 
 export default function MethodCard({ agent, method, onStart, defaultValues, borrowedFields }: MethodCardProps) {
-    const { register, handleSubmit, setValue } = useForm({ defaultValues });
+    const { register, handleSubmit, setValue, control } = useForm({ defaultValues });
     const [data, setData] = useState("");
 
-    console.log('asda', borrowedFields)
-
+    console.log(defaultValues, 'defaultValues')
+    
     const handleStartTask = (data: any) => {
         console.log(data);
         setData(JSON.stringify(data));
@@ -210,7 +235,7 @@ export default function MethodCard({ agent, method, onStart, defaultValues, borr
                                         </Typography>
                                     </Box>
                                 </Box>
-                                {COMPONENTS.get(e.type)?.({ register, name: e.name })}
+                                {COMPONENTS.get(e.type)?.({ register, name: e.name, control })}
                             </Box>
                         ))
                     }

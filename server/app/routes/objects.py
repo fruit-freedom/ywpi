@@ -32,7 +32,7 @@ class Object(pydantic.BaseModel):
 router = fastapi.APIRouter()
 
 
-@router.post('/api/projects/{project_id}/objects', tags=['object'])
+@router.post('/api/projects/{project_id}/objects', tags=['objects'])
 async def create_object(
     project_id: str,
     tp: t.Annotated[str, fastapi.Body()],
@@ -67,7 +67,7 @@ class ExtendedObject(Object):
     related_objects: t.Optional[list[RelatedObject]] = None
 
 
-@router.get('/api/objects/{object_id}', tags=['object'])
+@router.get('/api/objects/{object_id}', tags=['objects'])
 async def get_object(object_id: str, include_related: bool = False) -> ExtendedObject:
     obj = await objects_collection.find_one({ '_id': ObjectId(object_id) })
     if obj is None: raise fastapi.HTTPException(status_code=404)
@@ -97,7 +97,7 @@ async def get_object(object_id: str, include_related: bool = False) -> ExtendedO
     }
 
 
-@router.get('/api/objects/{object_id}/related', tags=['object'])
+@router.get('/api/objects/{object_id}/related', tags=['objects'])
 async def get_related_objects(object_id: str) -> list[ExtendedObject.RelatedObject]:
     bson_object_id = ObjectId(object_id)
     objs = await objects_collection.find({ 'relations.object_id': ObjectId(bson_object_id) }).to_list(None)
@@ -126,7 +126,7 @@ class CreateRelatedObject(pydantic.BaseModel):
     relation_name: str
 
 
-@router.post('/api/projects/{project_id}/objects/{object_id}/related', tags=['object'])
+@router.post('/api/projects/{project_id}/objects/{object_id}/related', tags=['objects'])
 async def create_related_object(
     project_id: str,
     object_id: str,
@@ -140,6 +140,6 @@ async def create_related_object(
     ])
 
 
-@router.get('/api/projects/{project_id}/objects', tags=['object'])
+@router.get('/api/projects/{project_id}/objects', tags=['objects'])
 async def get_objects_list(project_id: str) -> list[Object]:
     return await objects_collection.find({ 'project_id': ObjectId(project_id) }).to_list(None)

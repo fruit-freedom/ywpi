@@ -25,6 +25,13 @@ const buildSuitedTypeMethods = (agents: Agent[]): Map<string, MethodWithAgentId[
                     }
                     methods.get('text')?.push({ ...method, agentId: agent.id })
                 }
+
+                if (input.type === 'pdf') {
+                    if (!methods.has('pdf')) {
+                        methods.set('pdf', []);
+                    }
+                    methods.get('pdf')?.push({ ...method, agentId: agent.id })
+                }
             })
         });
     });

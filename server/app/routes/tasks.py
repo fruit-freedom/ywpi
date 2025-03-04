@@ -59,6 +59,9 @@ async def create_task(body: CreateTaskBody):
         )
     )
 
+    if response.HasField('error'):
+        raise fastapi.HTTPException(status_code=500, detail=response.error)
+
     # TODO: Add borrowed fields verification
     if body.borrowed_fields is not None:
         print(f'Upserting task {response.task_id}', {'borrowed_fields': body.borrowed_fields})

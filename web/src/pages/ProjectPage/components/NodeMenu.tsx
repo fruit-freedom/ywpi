@@ -8,7 +8,7 @@ import BlurOnIcon from '@mui/icons-material/BlurOn';
 
 
 interface NodeMenuProps {
-    tp?: string;
+    tp: string;
     data?: any;
 }
 
@@ -18,6 +18,11 @@ interface ChosenState {
     open: boolean;
     borrowedFields?: BorrowedFields;
 }
+
+const TO_FORM_VALUE = new Map<string, (data: any) => any>([
+    ['text', (data) => data.text],
+    ['pdf', (data) => data],
+]);
 
 export const NodeMenu = ({ tp, data }: NodeMenuProps) => {
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -40,14 +45,17 @@ export const NodeMenu = ({ tp, data }: NodeMenuProps) => {
         const borrowedFields: BorrowedFields = {};
 
         if (option) {
-            const textInputs = option.inputs.filter(e => e.type == 'text');
-            const defaultValues = textInputs.reduce((acc, item) => {
+            // Get inputs suited for object type
+            const inputs = option.inputs.filter(e => e.type == tp);
+            const defaultValues = inputs.reduce((acc, input) => {
 
                 // Each object `tp` should provide method like `toFormValue`
-                acc[item.name] = data.text;
+                // acc[input.name] = data.text;
 
-                borrowedFields[item.name] = {
-                    objectId: data.objectId, // TODO: get object id from node
+                acc[input.name] = TO_FORM_VALUE.get(tp)?.(data);
+                
+                borrowedFields[input.name] = {
+                    objectId: data.objectId,
                     path: 'text'
                 }
 

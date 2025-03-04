@@ -15,6 +15,11 @@ async def create_objects_from_event_data(data: models.TaskUpdatedData):
     agent: dict = await agents_collection.find_one({ 'id': data.agent_id }, { 'project': 1 })
     task: dict = await tasks_collection.find_one({ '_id': data.id }, { 'borrowed_fields': 1 })
 
+    print('----')
+    print('create_objects_from_event_data', data)
+    print('task', task)
+    print('----')
+
     if data.outputs is not None:
         for key, value in data.outputs.items():
             try:

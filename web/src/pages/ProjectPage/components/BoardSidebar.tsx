@@ -32,13 +32,13 @@ export const BoardSidebar = ({ projectId }: BoardSidebarProps) => {
             return;
         }
 
-        fetch(`/api/v2/projects/${projectId}/nodes`, {
+        fetch(`/api/projects/${projectId}/nodes`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                type: 'pdf',
+                tp: 'pdf',
                 data: {
                     name: name.value,
                     src: link.value
@@ -66,7 +66,7 @@ export const BoardSidebar = ({ projectId }: BoardSidebarProps) => {
                     >
                         Append PDF
                     </Button>
-                    <ObjectsList projectId={projectId}/>
+                    {/* <ObjectsList projectId={projectId}/> */}
                 </Box>
             </Stack>
             <Modal open={modalOpen} onClose={() => setModalOpen(false)}>

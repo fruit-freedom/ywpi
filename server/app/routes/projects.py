@@ -44,7 +44,7 @@ class Board(pydantic.BaseModel):
     edges: list[Edge]
 
 
-@router.post('/api/projects', tags=['project'])
+@router.post('/api/projects', tags=['projects'])
 async def create_project(
     name: t.Annotated[str, fastapi.Body()],
     tags: t.Annotated[list[str], fastapi.Body()] = None
@@ -53,12 +53,12 @@ async def create_project(
     return await projects_collection.find_one({ '_id': result.inserted_id })
 
 
-@router.get('/api/projects', tags=['project'])
+@router.get('/api/projects', tags=['projects'])
 async def get_projects_list() -> list[Project]:
     return await projects_collection.find().to_list(None)
 
 
-@router.delete('/api/projects/{project_id}', tags=['project'])
+@router.delete('/api/projects/{project_id}', tags=['projects'])
 async def delete_project(project_id: str):
     result = await projects_collection.delete_one({ '_id': ObjectId(project_id) })
 
@@ -104,7 +104,7 @@ async def delete_project(project_id: str):
 #     return Space(items=items)
 
 
-@router.get('/api/projects/{project_id}/board', tags=['node'])
+@router.get('/api/projects/{project_id}/board', tags=['boards'])
 async def get_project_board(project_id: str) -> Board:
     nodes = await nodes_collection.find({ 'project_id': ObjectId(project_id) }).to_list(None)
     return Board(
@@ -113,44 +113,44 @@ async def get_project_board(project_id: str) -> Board:
     )
 
 
-@router.post('/api/projects/{project_id}/nodes', tags=['node'])
-async def create_node(
-    text: t.Annotated[str, fastapi.Body()],
-    position: t.Annotated[Position, fastapi.Body()],
-    project_id: str
-) -> Node:
+# @router.post('/api/projects/{project_id}/nodes', tags=['node'])
+# async def create_node(
+#     text: t.Annotated[str, fastapi.Body()],
+#     position: t.Annotated[Position, fastapi.Body()],
+#     project_id: str
+# ) -> Node:
     
-    from app.routes.objects import create_object
+#     from app.routes.objects import create_object
 
-    obj = await create_object(project_id, 'text', data={ 'text': text })
+#     obj = await create_object(project_id, 'text', data={ 'text': text })
 
-    result = await nodes_collection.insert_one({
-        'project_id': ObjectId(project_id),
-        'object_id': ObjectId(obj.id),
-        'type': 'text',
-        'data': {
-            'text': text
-        },
-        'position': position.model_dump(mode='json')
-    })
+#     result = await nodes_collection.insert_one({
+#         'project_id': ObjectId(project_id),
+#         'object_id': ObjectId(obj.id),
+#         'type': 'text',
+#         'data': {
+#             'text': text
+#         },
+#         'position': position.model_dump(mode='json')
+#     })
 
-    return await nodes_collection.find_one({ '_id': result.inserted_id })
+#     return await nodes_collection.find_one({ '_id': result.inserted_id })
 
 
-@router.post('/api/v2/projects/{project_id}/nodes', tags=['node'])
+@router.post('/api/projects/{project_id}/nodes', tags=['nodes'])
 async def create_node(
     project_id: str,
-    type: t.Annotated[str, fastapi.Body()],
+    tp: t.Annotated[str, fastapi.Body()],
     data: t.Annotated[dict, fastapi.Body()],
     position: t.Annotated[Position, fastapi.Body()],
 ) -> Node:
     
     from app.routes.objects import create_object
-    created_object = await create_object(project_id, type, data)
+    created_object = await create_object(project_id, tp, data)
 
     result = await nodes_collection.insert_one({
         'project_id': ObjectId(project_id),
-        'type': type,
+        'type': tp,
         'data': data,
         'position': position.model_dump(mode='json'),
         'object_id': ObjectId(created_object.id)
@@ -159,7 +159,7 @@ async def create_node(
     return await nodes_collection.find_one({ '_id': result.inserted_id })
 
 
-@router.patch('/api/projects/{project_id}/nodes/{node_id}', tags=['node'])
+@router.patch('/api/projects/{project_id}/nodes/{node_id}', tags=['nodes'])
 async def update_node(
     project_id: str,
     node_id: str,

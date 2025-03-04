@@ -76,13 +76,41 @@ export const MarkdownNode = memo(({ data, isConnectable }: NodeProps) => {
 
 type TextNodeType = Node<{ text?: string; }>;
 
-export const TextNode = memo(({ data, isConnectable }: NodeProps<TextNodeType>) => {
+
+// export const TextNode = memo(({ type, data, isConnectable }: NodeProps<TextNodeType>) => {
+// export const TextNode = memo((props: NodeProps<TextNodeType>) => {
+//     return (
+//         <WithDragHandle {...props}>
+//             <Stack padding={'1em'} border={'1px dashed grey'} alignItems={'center'} color={'grey'} maxWidth={'400px'}>
+//                 {
+//                     props.data.text ?
+//                         <Typography>{props.data.text}</Typography>
+//                         : null
+//                 }
+//             </Stack>
+//             <Handle
+//                 type='source'
+//                 position={Position.Right}
+//                 id="a"
+//                 isConnectable={props.isConnectable}
+//             />
+//             <Handle
+//                 type='target'
+//                 position={Position.Left}
+//                 id="b"
+//                 isConnectable={props.isConnectable}
+//             />
+//         </WithDragHandle>
+//     );
+// });
+
+export const TextNode = (props: NodeProps<TextNodeType>) => {
     return (
-        <WithDragHandle tp={'text'} data={data}>
+        <>
             <Stack padding={'1em'} border={'1px dashed grey'} alignItems={'center'} color={'grey'} maxWidth={'400px'}>
                 {
-                    data.text ?
-                        <Typography>{data.text}</Typography>
+                    props.data.text ?
+                        <Typography>{props.data.text}</Typography>
                         : null
                 }
             </Stack>
@@ -90,17 +118,17 @@ export const TextNode = memo(({ data, isConnectable }: NodeProps<TextNodeType>) 
                 type='source'
                 position={Position.Right}
                 id="a"
-                isConnectable={isConnectable}
+                isConnectable={props.isConnectable}
             />
             <Handle
                 type='target'
                 position={Position.Left}
                 id="b"
-                isConnectable={isConnectable}
+                isConnectable={props.isConnectable}
             />
-        </WithDragHandle>
+        </>
     );
-});
+};
 
 export const StringListNode = memo(({ data, isConnectable }: NodeProps) => {
     return (

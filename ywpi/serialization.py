@@ -73,7 +73,7 @@ def handle_outputs(data: t.Any) -> dict[str, t.Any]:
     elif dataclasses.is_dataclass(data):
         return dataclasses.asdict(data)
     elif type(data) in SERIALIZERS:
-        return SERIALIZERS[data](data)
+        return SERIALIZERS[type(data)](data)
     else:
         raise TypeError(f'Type {type(data)} has not got serialize handler')
 

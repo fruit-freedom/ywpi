@@ -1,5 +1,6 @@
 import typing as t
 import threading
+import traceback
 
 from .connection import AbstractConnection
 from . import serialization
@@ -66,7 +67,7 @@ class IOManager:
         """
         Handle method outputs.
         """
-        self._connection.call_update_task(
+        return self._connection.call_update_task(
             hub_models.UpdateTaskRequest(id=self._task_id, outputs=serialization.handle_outputs(outputs))
         )
 
@@ -82,10 +83,17 @@ class IOManager:
         return params
 
     def update_task_status(self, status: str, final_outputs: dict = None):
-        self._connection.call_update_task(hub_models.UpdateTaskRequest(
+        outputs = None
+        try:
+            outputs = serialization.handle_outputs(final_outputs) if final_outputs is not None else None
+        except:
+            logger.warning(f'Error while converting final task outputs: {traceback.format_exc()}')
+            status = 'failed'
+
+        return self._connection.call_update_task(hub_models.UpdateTaskRequest(
             id=self._task_id,
             status=status,
-            outputs=final_outputs
+            outputs=outputs
         ))
 
     def append_stream(self, stream_id: str, init_items: list | None = None):

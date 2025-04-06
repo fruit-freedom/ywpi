@@ -121,6 +121,7 @@ class Exchanger:
             logger.debug(f'Read message "{message.reply_to}"')
 
             if isinstance(attr, hub_pb2.ResponseMessage):
+                logger.debug(f'Recieve response for "{message.reply_to}"')
                 await self._handle_response(message.reply_to, attr)
             elif isinstance(attr, hub_pb2.RequestMessage):
                 logger.info(f'Recieve rpc "{hub_pb2.Rpc.Name(attr.rpc)}"')
@@ -132,11 +133,12 @@ class Exchanger:
         reply_to = str(uuid.uuid4())
         future = asyncio.Future()
         self._outgoings_requests[reply_to] = future
+        logger.debug(f'Call rpc "{hub_pb2.Rpc.Name(rpc)}"')
         await self._write_request_message(rpc, payload, reply_to)
         try:
-            return await asyncio.wait_for(future, timeout=1.0)
+            return await asyncio.wait_for(future, timeout=10.0)
         finally:
-            pass
+            logger.debug(f'Rpc "{hub_pb2.Rpc.Name(rpc)}" finished')
 
     async def _rpc_register_agent(self, payload: hub_models.RegisterAgentRequest) -> hub_models.RegisterAgentResponse:
         if self._agent_description is not None:

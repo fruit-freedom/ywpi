@@ -8,6 +8,7 @@ import sys
 import typing
 import uuid
 import inspect
+import traceback
 
 import grpc
 import pydantic
@@ -153,13 +154,17 @@ class SimpleMethodExecuter:
                         logger.warning(f'Outputs serializations error: {e.args}')
             else:
                 final_outputs = method(**kwargs)
-                final_status = 'completed'
+            final_status = 'completed'
         except BaseException as e:
-            logger.warning('method raise exception')
+            logger.warning(f'Method raise exception: {traceback.format_exc()}')
             final_status = 'failed'
         finally:
-            io_manager.update_task_status(final_status, final_outputs)
-            executer._perform_task_cleanup(io_manager.task_id)
+            try:
+                logger.debug(f'Start cleanup steps for task "{io_manager.task_id}"')
+                io_manager.update_task_status(final_status, final_outputs)
+                executer._perform_task_cleanup(io_manager.task_id)
+            except:
+                logger.error(f'Task cleanup steps error: {traceback.format_exc()}')
 
     def update_task_inputs(self, task_id: str, inputs: dict):
         with self._io_managers_lock:
@@ -169,8 +174,11 @@ class SimpleMethodExecuter:
                 logger.warning(f'Task "{task_id}" does not has io manager and could not be updated')
 
     def call_method(self, exchanger: 'Exchanger', task_id: str, method: str, inputs: dict[str, typing.Any]):
-        exchanger.call_update_task(hub_models.UpdateTaskRequest(id=task_id, status='started'))
+        # exchanger.call_update_task(hub_models.UpdateTaskRequest(id=task_id, status='started'))
         io_manager = IOManager(task_id, self.method_input_dicts[method], exchanger)
+
+        # TODO: Move `handle_inputs` call to `_method_wrapper`
+        # WHY: `handle_inputs` sometimes could perform long running job during convertation like file downloading
         params = io_manager.handle_inputs(inputs)
 
         self.thread_pool.submit(
@@ -215,6 +223,7 @@ class Exchanger:
             error: str | None = 'undefined'
         ):
         args = { 'payload': payload } if payload else { 'error': error }
+        logger.debug(f'[RPC] Write response MID: "{reply_to}" payload: "{payload}"')
         self.output_channel.push(
             hub_pb2.Message(
                 reply_to=reply_to,
@@ -225,7 +234,7 @@ class Exchanger:
         )
 
     def _rpc_start_task(self, payload: hub_models.StartTaskRequest) -> hub_models.StartTaskResponse:
-        status = 'failed'
+        status = 'started'
         self.service.call_method(self, payload.id, payload.method, payload.params)
         return hub_models.StartTaskResponse(status=status)
 
@@ -256,7 +265,6 @@ class Exchanger:
             else:
                 logger.warning(f'Method {hub_pb2.Rpc.Name(request.rpc)} not implemented')
         except BaseException as e:
-            import traceback
             traceback.print_exc()
             self._write_response_message(
                 reply_to,
@@ -271,13 +279,14 @@ class Exchanger:
                 attr = message.__getattribute__(message.WhichOneof('message'))
 
                 if isinstance(attr, hub_pb2.ResponseMessage):
+                    logger.debug(f'[RPC] Recieve response for MID: "{message.reply_to}" payload: "{attr.payload}"')
                     if message.reply_to in self.outgoings_requests:
                         with self.outgoings_requests_lock:
                             self.outgoings_requests.pop(message.reply_to).set_result(attr)
                     else:
-                        logger.warning(f'[Agent={self.agent_id}] Recieved unexpected message {message.reply_to}')
+                        logger.warning(f'[RPC] Recieved unexpected response MID: "{message.reply_to}"')
                 elif isinstance(attr, hub_pb2.RequestMessage):
-                    logger.info(f'[Agent={self.agent_id}] Recieve rpc "{hub_pb2.Rpc.Name(attr.rpc)}"')
+                    logger.debug(f'[RPC] Recieve rpc "{hub_pb2.Rpc.Name(attr.rpc)}" for "{message.reply_to}" payload: "{attr.payload}"')
                     self._handle_request(message.reply_to, attr)
                 else:
                     logger.warning(f'Recieved unexpected message type {type(attr)}')
@@ -291,10 +300,12 @@ class Exchanger:
 
     def call(self, rpc: hub_pb2.Rpc, payload: pydantic.BaseModel) -> futures.Future[hub_pb2.ResponseMessage]:
         reply_to = str(uuid.uuid4())
+        logger.debug(f'[RPC] call (start): "{hub_pb2.Rpc.Name(rpc)}" MID: "{reply_to}" payload: "{payload}"')
         future = futures.Future()
         with self.outgoings_requests_lock:
             self.outgoings_requests[reply_to] = future
         self._write_request_message(rpc, payload, reply_to)
+        logger.debug(f'[RPC] call: "{hub_pb2.Rpc.Name(rpc)}" MID: "{reply_to}" payload: "{payload}"')
         return future
 
     def call_register_agent(self, payload: hub_models.RegisterAgentRequest):
@@ -302,7 +313,6 @@ class Exchanger:
 
     def call_update_task(self, payload: hub_models.UpdateTaskRequest):
         return self.call(hub_pb2.Rpc.RPC_UPDATE_TASK, payload.model_dump_json())
-
 
 def serve(
     id: str,

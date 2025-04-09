@@ -6,7 +6,6 @@ from ywpi.handle_args import TYPE_CONVERTERS, DESERIALIZERS, TYPE_NAMES
 import requests
 
 class PDF(pydantic.BaseModel):
-    objectId: str
     name: str
     src: str
 

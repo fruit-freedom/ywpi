@@ -11,7 +11,8 @@ import {
 } from '@xyflow/react';
 
 
-import { Chip, Modal, Stack, Typography } from "@mui/material";
+import { Box, Chip, Modal, Stack, Typography } from "@mui/material";
+import { Viewer, Worker } from "@react-pdf-viewer/core";
 
 type PDFNodeType = Node<{ name?: string, src?: string; }>;
 
@@ -28,15 +29,18 @@ export const PDFNode = ({ data, isConnectable }: NodeProps<PDFNodeType>) => {
                     width={'min-content'}
                     justifyContent={'center'}
                 >
-                    <Document file={data.src}>
-                        <Stack gap={1}>
-                            <Page pageNumber={1} width={1000} />
-                            <Page pageNumber={2} width={1000} />
-                            <Page pageNumber={3} width={1000} />
-                            <Page pageNumber={4} width={1000} />
-                            <Page pageNumber={5} width={1000} />
-                        </Stack>
-                    </Document>
+                    <Box width={'70vw'} height={'95vh'}>
+                        <Worker workerUrl="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js">
+                            {
+                                data.src ?
+                                <Viewer
+                                    fileUrl={data.src}
+                                    plugins={[]}
+                                />
+                                : null
+                            }
+                        </Worker>
+                    </Box>
                 </Stack>
             </Modal>
             <Stack bgcolor={'#fff'} maxWidth={'400px'} padding={'1em'} borderRadius={'4px'}>

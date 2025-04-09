@@ -14,17 +14,18 @@ code {
 }
 
 ::-webkit-scrollbar-thumb {
-  background-color: lightgrey;
+  cursor: pointer;
+  background-color: black;
   border-radius: 16px;
-  width: 8px;
+  width: 4px;
 }
 
 ::-webkit-scrollbar-track {
-  width: 8px;
+  width: 4px;
   border-radius: 16px
 }
 
 ::-webkit-scrollbar {
   background-color: #fff;
-  width: 6px;
+  width: 4px;
 }

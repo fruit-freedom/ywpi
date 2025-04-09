@@ -5,10 +5,14 @@ import fastapi
 import pydantic
 import grpc
 
-from app.db import agents_collection, tasks_collection
-from app import hub_pb2
-from app import hub_pb2_grpc
-from app import models
+from ..db import agents_collection, tasks_collection
+# from app import hub_pb2
+# from app import hub_pb2_grpc
+# from app import models
+
+from .. import hub_pb2
+from .. import hub_pb2_grpc
+from .. import models
 
 
 hub_stub: hub_pb2_grpc.HubStub = None

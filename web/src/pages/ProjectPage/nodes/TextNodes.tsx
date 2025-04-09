@@ -107,7 +107,7 @@ type TextNodeType = Node<{ text?: string; }>;
 export const TextNode = (props: NodeProps<TextNodeType>) => {
     return (
         <>
-            <Stack padding={'1em'} border={'1px dashed grey'} alignItems={'center'} color={'grey'} maxWidth={'400px'}>
+            <Stack padding={'1em'} border={'1px dashed grey'} alignItems={'center'} color={'grey'} maxWidth={'500px'}>
                 {
                     props.data.text ?
                         <Typography>{props.data.text}</Typography>

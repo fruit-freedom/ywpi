@@ -1,6 +1,7 @@
 import dataclasses
 import typing as t
 import inspect
+import pydantic
 
 from ywpi import types as ytypes
 # from ywpi.stream import Stream
@@ -12,6 +13,7 @@ TYPE_NAMES = {
     ytypes.Text: 'text',
     bytes: 'bytes',
     ytypes.Image: 'image',
+    ytypes.Object: 'object',
     # Stream: 'stream'
 }
 
@@ -45,6 +47,7 @@ DESERIALIZERS: dict[t.Any, t.Callable] = {
     float: lambda v: float(v),
     ytypes.Image: cvt_image,
     ytypes.Text: lambda v: str(v),
+    ytypes.Object: lambda v: ytypes.Object.model_validate(v)
     # Stream: handle_stream
 }
 
@@ -54,6 +57,13 @@ TYPE_CONVERTERS = {
     (ytypes.Image, bytes): lambda v: bytes('image-data', encoding='utf-8'),
     (ytypes.Text, str): lambda v: str(v),
 }
+
+
+@dataclasses.dataclass
+class Type:
+    name: str
+    tp: t.Any
+    args: t.Optional[list['Type']] = dataclasses.field(default_factory=list)
 
 
 @dataclasses.dataclass
@@ -69,6 +79,7 @@ class InputTyping:
     source_tp: t.Any | None = None
     optional: bool = False
     json_repr: t.Optional[t.Union[int, str, float, dict, list]] = None
+    args: t.Optional[list['Type']] = dataclasses.field(default_factory=list)
 
 
 def get_input_dict(fn) -> dict[str, InputTyping]:
@@ -114,6 +125,29 @@ def get_input_dict(fn) -> dict[str, InputTyping]:
                     target_tp=target_tp,
                     optional=param.default is not inspect.Parameter.empty
                 )
+            elif issubclass(target_tp, pydantic.BaseModel):
+                source_tp = target_tp
+
+                args = pydantic._internal._generics.get_args(source_tp)
+
+                type_args = None
+                if len(args):
+                    source_tp = pydantic._internal._generics.get_origin(source_tp)
+                    arg0 = args[0]
+                    type_args = [
+                        Type(
+                            name=TYPE_NAMES[arg0],
+                            tp=arg0,
+                        )
+                    ]
+
+                inputs_dict[name] = InputTyping(
+                    name=TYPE_NAMES[source_tp],
+                    source_tp=target_tp,
+                    target_tp=target_tp,
+                    optional=param.default is not inspect.Parameter.empty,
+                    args=type_args
+                )
             else:
                 raise KeyError(f'type {tp} has not got deserializer')
     return inputs_dict
@@ -140,8 +174,13 @@ def handle_args(data: dict, inputs: dict[str, InputTyping], ctx: dict = {}):
                 continue
             raise KeyError(f'argument {name} does not present in inputs')
         raw_value = data[name]
+
         source_tp = t.get_origin(input.source_tp) if t.get_origin(input.source_tp) is not None else input.source_tp
-        value = DESERIALIZERS[source_tp](raw_value)
+
+        if issubclass(input.source_tp, pydantic.BaseModel):
+            value = input.source_tp.model_validate(raw_value)
+        else:
+            value = DESERIALIZERS[source_tp](raw_value)
 
         if input.source_tp is not input.target_tp:
             value = TYPE_CONVERTERS[(input.source_tp, input.target_tp)](value)
@@ -180,12 +219,6 @@ def handle_args(data: dict, inputs: dict[str, InputTyping], ctx: dict = {}):
 
 # # print(type_hints['text'].__origin__, type_hints['text'].__metadata__, type_hints['text'])
 # # print(t.get_origin(t.Annotated[str, ywpi.Text]) is t.Annotated)
-
-@dataclasses.dataclass
-class Type:
-    name: str
-    tp: t.Any
-    args: t.Optional[list['Type']] = None
 
 
 def handle_tp(tp: t.Any) -> Type:

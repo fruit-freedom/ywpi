@@ -16,6 +16,5 @@ sync_hub_proto:
 		rm ywpi/hub.proto
 
 	cp hub/hub.proto server/app/hub.proto && \
-		cd server && \
-		python -m grpc_tools.protoc --python_out=. --grpc_python_out=. --pyi_out=. -I . app/hub.proto && \
-		rm app/hub.proto
+		python -m grpc_tools.protoc --python_out=. --grpc_python_out=. --pyi_out=. -I . server/app/hub.proto && \
+		rm server/app/hub.proto

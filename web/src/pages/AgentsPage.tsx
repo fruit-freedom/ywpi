@@ -77,7 +77,7 @@ const TaskCard = ({ task }: TaskCardProps) => {
                         Object.entries(task.inputs).map((k) => (
                             <Box key={k[0]} display={'flex'} gap={2}>
                                 <Typography fontWeight={600}>{k[0]}</Typography>
-                                <Typography>{k[1] as any}</Typography>
+                                <Typography>{JSON.stringify(k[1], null, 2)}</Typography>
                             </Box>
                         ))
                     }

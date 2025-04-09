@@ -11,7 +11,7 @@ from .subscribers import SUBSCRIBERS
 from .routes.projects import router as projects_router
 from .routes.objects import router as objects_router
 from .routes.tasks import router as tasks_router
-
+from .execution_manager import router as execution_managers_router
 
 router = fastapi.APIRouter()
 
@@ -34,7 +34,7 @@ async def lifespan(app):
 
 def main():
     uvicorn.run(
-        'app.main:app',
+        'server.app.main:app',
         port=5011,
         reload=True,
         timeout_graceful_shutdown=0.5,
@@ -47,6 +47,7 @@ app.include_router(router)
 app.include_router(tasks_router)
 app.include_router(projects_router)
 app.include_router(objects_router)
+app.include_router(execution_managers_router)
 
 
 if __name__ == '__main__':

@@ -4,7 +4,7 @@ import fastapi
 import pydantic
 from bson import ObjectId
 
-from app.db import objects_collection
+from ..db import objects_collection
 
 
 PyObjectId = t.Annotated[str, pydantic.BeforeValidator(str)]
@@ -141,5 +141,9 @@ async def create_related_object(
 
 
 @router.get('/api/projects/{project_id}/objects', tags=['objects'])
-async def get_objects_list(project_id: str) -> list[Object]:
-    return await objects_collection.find({ 'project_id': ObjectId(project_id) }).to_list(None)
+async def get_objects_list(project_id: str, q: t.Optional[str] = None) -> list[Object]:
+    additioanl_filters = { }
+    if q is not None:
+        additioanl_filters['tp'] = q
+    return await objects_collection.find({ 'project_id': ObjectId(project_id), **additioanl_filters }).sort({'_id': -1}).to_list(None)
+

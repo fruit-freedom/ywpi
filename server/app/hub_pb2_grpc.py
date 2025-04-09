@@ -3,7 +3,7 @@
 import grpc
 import warnings
 
-from app import hub_pb2 as app_dot_hub__pb2
+from server.app import hub_pb2 as server_dot_app_dot_hub__pb2
 
 GRPC_GENERATED_VERSION = '1.64.0'
 GRPC_VERSION = grpc.__version__
@@ -20,7 +20,7 @@ except ImportError:
 if _version_not_supported:
     warnings.warn(
         f'The grpc package installed is at version {GRPC_VERSION},'
-        + f' but the generated code in app/hub_pb2_grpc.py depends on'
+        + f' but the generated code in server/app/hub_pb2_grpc.py depends on'
         + f' grpcio>={GRPC_GENERATED_VERSION}.'
         + f' Please upgrade your grpc module to grpcio>={GRPC_GENERATED_VERSION}'
         + f' or downgrade your generated code using grpcio-tools<={GRPC_VERSION}.'
@@ -41,23 +41,23 @@ class HubStub(object):
         """
         self.Connect = channel.stream_stream(
                 '/Hub/Connect',
-                request_serializer=app_dot_hub__pb2.Message.SerializeToString,
-                response_deserializer=app_dot_hub__pb2.Message.FromString,
+                request_serializer=server_dot_app_dot_hub__pb2.Message.SerializeToString,
+                response_deserializer=server_dot_app_dot_hub__pb2.Message.FromString,
                 _registered_method=True)
         self.PushTask = channel.unary_unary(
                 '/Hub/PushTask',
-                request_serializer=app_dot_hub__pb2.PushTaskRequest.SerializeToString,
-                response_deserializer=app_dot_hub__pb2.PushTaskResponse.FromString,
+                request_serializer=server_dot_app_dot_hub__pb2.PushTaskRequest.SerializeToString,
+                response_deserializer=server_dot_app_dot_hub__pb2.PushTaskResponse.FromString,
                 _registered_method=True)
         self.RunTask = channel.unary_unary(
                 '/Hub/RunTask',
-                request_serializer=app_dot_hub__pb2.PushTaskRequest.SerializeToString,
-                response_deserializer=app_dot_hub__pb2.RunTaskResponse.FromString,
+                request_serializer=server_dot_app_dot_hub__pb2.PushTaskRequest.SerializeToString,
+                response_deserializer=server_dot_app_dot_hub__pb2.RunTaskResponse.FromString,
                 _registered_method=True)
         self.GetAgentsList = channel.unary_unary(
                 '/Hub/GetAgentsList',
-                request_serializer=app_dot_hub__pb2.GetAgentsListRequest.SerializeToString,
-                response_deserializer=app_dot_hub__pb2.GetAgentsListResponse.FromString,
+                request_serializer=server_dot_app_dot_hub__pb2.GetAgentsListRequest.SerializeToString,
+                response_deserializer=server_dot_app_dot_hub__pb2.GetAgentsListResponse.FromString,
                 _registered_method=True)
 
 
@@ -93,23 +93,23 @@ def add_HubServicer_to_server(servicer, server):
     rpc_method_handlers = {
             'Connect': grpc.stream_stream_rpc_method_handler(
                     servicer.Connect,
-                    request_deserializer=app_dot_hub__pb2.Message.FromString,
-                    response_serializer=app_dot_hub__pb2.Message.SerializeToString,
+                    request_deserializer=server_dot_app_dot_hub__pb2.Message.FromString,
+                    response_serializer=server_dot_app_dot_hub__pb2.Message.SerializeToString,
             ),
             'PushTask': grpc.unary_unary_rpc_method_handler(
                     servicer.PushTask,
-                    request_deserializer=app_dot_hub__pb2.PushTaskRequest.FromString,
-                    response_serializer=app_dot_hub__pb2.PushTaskResponse.SerializeToString,
+                    request_deserializer=server_dot_app_dot_hub__pb2.PushTaskRequest.FromString,
+                    response_serializer=server_dot_app_dot_hub__pb2.PushTaskResponse.SerializeToString,
             ),
             'RunTask': grpc.unary_unary_rpc_method_handler(
                     servicer.RunTask,
-                    request_deserializer=app_dot_hub__pb2.PushTaskRequest.FromString,
-                    response_serializer=app_dot_hub__pb2.RunTaskResponse.SerializeToString,
+                    request_deserializer=server_dot_app_dot_hub__pb2.PushTaskRequest.FromString,
+                    response_serializer=server_dot_app_dot_hub__pb2.RunTaskResponse.SerializeToString,
             ),
             'GetAgentsList': grpc.unary_unary_rpc_method_handler(
                     servicer.GetAgentsList,
-                    request_deserializer=app_dot_hub__pb2.GetAgentsListRequest.FromString,
-                    response_serializer=app_dot_hub__pb2.GetAgentsListResponse.SerializeToString,
+                    request_deserializer=server_dot_app_dot_hub__pb2.GetAgentsListRequest.FromString,
+                    response_serializer=server_dot_app_dot_hub__pb2.GetAgentsListResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -137,8 +137,8 @@ class Hub(object):
             request_iterator,
             target,
             '/Hub/Connect',
-            app_dot_hub__pb2.Message.SerializeToString,
-            app_dot_hub__pb2.Message.FromString,
+            server_dot_app_dot_hub__pb2.Message.SerializeToString,
+            server_dot_app_dot_hub__pb2.Message.FromString,
             options,
             channel_credentials,
             insecure,
@@ -164,8 +164,8 @@ class Hub(object):
             request,
             target,
             '/Hub/PushTask',
-            app_dot_hub__pb2.PushTaskRequest.SerializeToString,
-            app_dot_hub__pb2.PushTaskResponse.FromString,
+            server_dot_app_dot_hub__pb2.PushTaskRequest.SerializeToString,
+            server_dot_app_dot_hub__pb2.PushTaskResponse.FromString,
             options,
             channel_credentials,
             insecure,
@@ -191,8 +191,8 @@ class Hub(object):
             request,
             target,
             '/Hub/RunTask',
-            app_dot_hub__pb2.PushTaskRequest.SerializeToString,
-            app_dot_hub__pb2.RunTaskResponse.FromString,
+            server_dot_app_dot_hub__pb2.PushTaskRequest.SerializeToString,
+            server_dot_app_dot_hub__pb2.RunTaskResponse.FromString,
             options,
             channel_credentials,
             insecure,
@@ -218,8 +218,8 @@ class Hub(object):
             request,
             target,
             '/Hub/GetAgentsList',
-            app_dot_hub__pb2.GetAgentsListRequest.SerializeToString,
-            app_dot_hub__pb2.GetAgentsListResponse.FromString,
+            server_dot_app_dot_hub__pb2.GetAgentsListRequest.SerializeToString,
+            server_dot_app_dot_hub__pb2.GetAgentsListResponse.FromString,
             options,
             channel_credentials,
             insecure,

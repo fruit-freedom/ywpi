@@ -1,4 +1,4 @@
-import { Box } from "@mui/material"
+import { Box, Stack } from "@mui/material"
 import React, { useEffect } from 'react';
 
 import '@xyflow/react/dist/style.css';
@@ -19,22 +19,36 @@ const buildSuitedTypeMethods = (agents: Agent[]): Map<string, MethodWithAgentId[
 
         agent.methods.forEach((method) => {
             method.inputs.forEach(input => {
-                if (input.type === 'text') {
+                if (input.type.name === 'text') {
                     if (!methods.has('text')) {
                         methods.set('text', []);
                     }
                     methods.get('text')?.push({ ...method, agentId: agent.id })
                 }
 
-                if (input.type === 'pdf') {
+                if (input.type.name === 'pdf') {
                     if (!methods.has('pdf')) {
                         methods.set('pdf', []);
                     }
                     methods.get('pdf')?.push({ ...method, agentId: agent.id })
                 }
+
+                if (input.type.name === 'object') {
+                    let typeName = 'object';
+                    if (input.type.args?.length) {
+                        typeName += `[${input.type.args[0].name}]`;
+                    }
+
+                    if (!methods.has(typeName)) {
+                        methods.set(typeName, []);
+                    }
+                    methods.get(typeName)?.push({ ...method, agentId: agent.id })
+                }
             })
         });
     });
+
+    console.log('methods', methods)
 
     return methods;
 }
@@ -49,21 +63,22 @@ export default () => {
     useEffect(() => {
         const methods = buildSuitedTypeMethods(agents);
         setMethods(methods);
-        console.log(methods);
     }, [agents]);
 
     return (
         <>
             {
                 projectId ?
-                <>
-                    <Box width={'10rem'} position={'absolute'} top={'0.4rem'} left={'0.4rem'} zIndex={999}>
+                <Stack direction={'row'} width={'100%'} height={'calc(100vh - 65px)'} >
+                    <Box>
                         <BoardSidebar projectId={projectId} />
                     </Box>
-                    <Board
-                        projectId={projectId ? projectId : ''}
-                    />
-                </>
+                    <Box flexGrow={1}>
+                        <Board
+                            projectId={projectId ? projectId : ''}
+                        />
+                    </Box>
+                </Stack>
                 : null
             }
         </>

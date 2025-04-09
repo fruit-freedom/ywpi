@@ -10,15 +10,19 @@ class InputDescription(pydantic.BaseModel):
     type: str
 
 
+class Type(pydantic.BaseModel):
+    name: str
+    args: t.Optional[list['Type']] = None
+
+
 class Field(pydantic.BaseModel):
     name: str
-    type: str # "llama_index.Document"
-    args: t.Optional[list] = None
+    type: Type
 
 
 class Method(pydantic.BaseModel):
     name: str
-    inputs: list[InputDescription]
+    inputs: list[Field]
     outputs: list[Field]
     description: t.Optional[str] = None
 
@@ -49,7 +53,6 @@ class UpdateTaskRequest(pydantic.BaseModel):
     id: str
     status: str | None = None
     outputs: dict | None = None
-    inputs: dict | None = None
 
 
 class UpdateTaskResponse(pydantic.BaseModel):

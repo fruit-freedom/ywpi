@@ -6,7 +6,7 @@ export default () => {
     const navigate = useNavigate();
 
     return (
-        <AppBar position="static" sx={{ backgroundColor: '#fff' }}>
+        <AppBar position="static" sx={{ backgroundColor: '#fff', height: '65px' }}>
             <Toolbar>
                 <Box marginRight={'3em'} sx={{ cursor: 'pointer' }}>
                     <Box

@@ -19,9 +19,14 @@ interface ChosenState {
     borrowedFields?: BorrowedFields;
 }
 
-const TO_FORM_VALUE = new Map<string, (data: any) => any>([
+const TO_FORM_VALUE = new Map<string, (data: any, ctx?: any) => any>([
     ['text', (data) => data.text],
     ['pdf', (data) => data],
+    ['object', (data, ctx) => ({
+        id: ctx.id,
+        tp: ctx.tp,
+        data,
+    })]
 ]);
 
 export const NodeMenu = ({ tp, data }: NodeMenuProps) => {
@@ -46,14 +51,19 @@ export const NodeMenu = ({ tp, data }: NodeMenuProps) => {
 
         if (option) {
             // Get inputs suited for object type
-            const inputs = option.inputs.filter(e => e.type == tp);
+            const inputs = option.inputs.filter(e => (e.type.name === tp || e.type.name === 'object'));
             const defaultValues = inputs.reduce((acc, input) => {
 
                 // Each object `tp` should provide method like `toFormValue`
                 // acc[input.name] = data.text;
 
-                acc[input.name] = TO_FORM_VALUE.get(tp)?.(data);
-                
+                if (input.type.name === 'object') {
+                    acc[input.name] = TO_FORM_VALUE.get('object')?.(data, { id: data.objectId, tp });
+                }
+                else {
+                    acc[input.name] = TO_FORM_VALUE.get(tp)?.(data);
+                }
+
                 borrowedFields[input.name] = {
                     objectId: data.objectId,
                     path: 'text'
@@ -61,8 +71,6 @@ export const NodeMenu = ({ tp, data }: NodeMenuProps) => {
 
                 return acc;
             }, {} as any)
-
-            console.log('borrowedFields', borrowedFields)
 
             setChosen({
                 method: option,
@@ -80,7 +88,7 @@ export const NodeMenu = ({ tp, data }: NodeMenuProps) => {
 
     // Think how to optimize re renders
     const { methods } = useMethods();
-    const options = methods.get(tp);
+    const options = [...(methods.get(tp) || []), ...(methods.get(`object[${tp}]`) || [])];
 
     return (
         <>

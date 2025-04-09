@@ -118,11 +118,25 @@ class SimpleMethodExecuter:
             self.methods.append(hub_models.Method(
                 name=name,
                 inputs=[
-                    hub_models.InputDescription(name=input_name, type=input.name)
+                    # hub_models.InputDescription(name=input_name, type=input.name)
+                    # for input_name, input in registered_method.inputs.items()
+                    hub_models.Field(
+                        name=input_name,
+                        type=hub_models.Type(
+                            name=input.name,
+                            args=[hub_models.Type(name=a.name) for a in input.args]
+                        )
+                    )
                     for input_name, input in registered_method.inputs.items()
                 ],
                 outputs=[
-                    hub_models.Field(name=output_name, type=output.name)
+                    hub_models.Field(
+                        name=output_name,
+                        type=hub_models.Type(
+                            name=output.name,
+                            args=[hub_models.Type(name=arg.name) for arg in output.args] if output.args is not None else []
+                        )
+                    )
                     for output_name, output in registered_method.outputs.items()
                 ],
                 description=registered_method.description

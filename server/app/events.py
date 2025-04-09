@@ -1,35 +1,47 @@
 from aio_pika import connect
 from aio_pika.abc import AbstractIncomingMessage
 from bson import ObjectId
+import traceback
 
-from app.settings import RQ_CONNECTION_STRING, RQ_EXCHANGE_NAME
-from .db import agents_collection, tasks_collection
+from .settings import RQ_CONNECTION_STRING, RQ_EXCHANGE_NAME
+from .db import agents_collection, tasks_collection, objects_collection
 from .subscribers import SUBSCRIBERS
 from . import models
 
 from .db import objects_collection
-from app.routes.objects import create_object, Relation
+from .routes.objects import create_object, Relation
+
+
+def object_from_output(value):
+    if isinstance(value, str):
+        pass
 
 
 async def create_objects_from_event_data(data: models.TaskUpdatedData):
     agent: dict = await agents_collection.find_one({ 'id': data.agent_id }, { 'project': 1 })
     task: dict = await tasks_collection.find_one({ '_id': data.id }, { 'borrowed_fields': 1 })
 
+
     print('----')
     print('create_objects_from_event_data', data)
     print('task', task)
     print('----')
 
+    # Bind all outputs to all objects
     if data.outputs is not None:
         for key, value in data.outputs.items():
             try:
                 if isinstance(value, str):
-                    await create_object(agent['project'], 'text', { 'text': value }, relations=[
-                        Relation(object_id=rel_input['object_id'], name=rel_input['path'])
-                        for rel_input in task.get('borrowed_fields', {}).values()
-                    ])
+                    relations = []
+                    source_obj = None
+                    for relname, relvalue in task.get('borrowed_fields', {}).items():
+                        source_obj = await objects_collection.find_one({ '_id': ObjectId(relvalue['object_id']) }, { 'project_id': 1 })
+                        relations.append(Relation(object_id=relvalue['object_id'], name=relvalue['path']))
+
+                    if source_obj is not None:
+                        await create_object(source_obj['project_id'], 'text', { 'text': value }, relations=relations)
             except Exception as e:
-                print(e)
+                traceback.print_exc()
 
 
 async def handle_event(event: models.Event):
@@ -37,6 +49,7 @@ async def handle_event(event: models.Event):
     if domain == 'agent':
         if kind == 'connected':
             data = models.AgentConnectedData.model_validate(event.data)
+            print('datadata', data)
             agents_collection.update_one({ 'id': data.id }, { '$set': data.model_dump(mode='json') }, upsert=True)
         elif kind == 'disconnected':
             data = models.AgentDisconnectedData.model_validate(event.data)

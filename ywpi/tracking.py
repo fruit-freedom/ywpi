@@ -1,12 +1,20 @@
+def _track(fn):
+    def wrapper():
+        fn()
+
+    return wrapper
 
 
-def track(track_yields=False):
+def track(fn=None, track_yields=True):
+    if fn is None:
+        return _track(fn)
+
     def decorator(fn):
-        pass
+        return _track(fn)
+    
+    return decorator
 
 
-
-# track_yields=True => all yielded values will be logged
 
 @track()
 def some_trackable(number: int, word: str):

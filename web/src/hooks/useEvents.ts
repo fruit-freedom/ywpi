@@ -43,16 +43,20 @@ interface Task {
     outputs?: any;
 }
 
+interface Type {
+    name: string;
+    args?: Type[];
+}
+
 interface Field {
     name: string;
-    type: string;
-    args?: Field[];
+    type: Type;
 }
 
 export interface Method {
     name: string;
     description?: string;
-    inputs: Input[];
+    inputs: Field[];
     outputs: Field[];
 }
 

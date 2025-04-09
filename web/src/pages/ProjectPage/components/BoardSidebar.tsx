@@ -1,4 +1,4 @@
-import { Paper, Stack, Box, Typography, Button, Modal, TextField } from "@mui/material"
+import { Paper, Stack, Box, Typography, Button, Modal, TextField, Drawer } from "@mui/material"
 import { useRef, useState } from "react"
 import { ObjectsList } from "./ObjectsList";
 
@@ -55,20 +55,31 @@ export const BoardSidebar = ({ projectId }: BoardSidebarProps) => {
         setModalOpen(false);
     }
 
+    const [searchOpen, setSearchOpen] = useState(true);
+
     return (
         <>
             <Stack>
-                <Box>
+                <Stack gap={1} padding={1}>
                     <Button
                         variant='contained'
-                        sx={{ color: '#fff', bgcolor: '#000', fontWeight: 700 }}
+                        sx={{ color: '#fff', bgcolor: '#000', fontWeight: 700, width: 'max-content' }}
                         onClick={() => setModalOpen(true)}
                     >
-                        Append PDF
+                        Create
                     </Button>
-                    {/* <ObjectsList projectId={projectId}/> */}
-                </Box>
+                    <Button
+                        variant='contained'
+                        sx={{ color: '#fff', bgcolor: '#000', fontWeight: 700, width: 'max-content' }}
+                        onClick={() => setSearchOpen(true)}
+                    >
+                        Search
+                    </Button>
+                </Stack>
             </Stack>
+            <Drawer open={searchOpen} onClose={() => setSearchOpen(false)} PaperProps={{ sx: {  } }}>
+                <ObjectsList projectId={projectId}/>
+            </Drawer>
             <Modal open={modalOpen} onClose={() => setModalOpen(false)}>
                 <Stack
                     padding={'1em'}
@@ -76,7 +87,7 @@ export const BoardSidebar = ({ projectId }: BoardSidebarProps) => {
                     justifyContent={'center'}
                     height={'100vh'}
                 >
-                    <Stack width={'40rem'} bgcolor={'#fff'} borderRadius={'4px'} padding={'3rem'} gap={2}>
+                    <Stack bgcolor={'#fff'} borderRadius={'4px'} padding={'3rem'} gap={2}>
                         <Typography variant="h5" textAlign={'center'} fontWeight={700}>Create document</Typography>
                         <TextField
                             size='small'

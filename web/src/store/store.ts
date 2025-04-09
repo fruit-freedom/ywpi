@@ -1,9 +1,14 @@
 import { create } from 'zustand'
 import { AgentConnectedData, AgentStatus } from '../hooks/useEvents'; 
 
-export interface Input {
+export interface Type {
     name: string;
-    type: string;
+    args?: Type[];
+}
+
+export interface Field {
+    name: string;
+    type: Type;
 }
 
 export interface Output {
@@ -22,7 +27,9 @@ export interface Task {
 
 export interface Method {
     name: string;
-    inputs: Input[];
+    inputs: Field[];
+    outputs: Field[];
+    description?: string;
 }
 
 export interface Agent extends AgentConnectedData {

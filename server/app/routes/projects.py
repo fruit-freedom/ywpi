@@ -145,7 +145,7 @@ async def create_node(
     position: t.Annotated[Position, fastapi.Body()],
 ) -> Node:
     
-    from app.routes.objects import create_object
+    from ..routes.objects import create_object
     created_object = await create_object(project_id, tp, data)
 
     result = await nodes_collection.insert_one({
@@ -154,6 +154,33 @@ async def create_node(
         'data': data,
         'position': position.model_dump(mode='json'),
         'object_id': ObjectId(created_object.id)
+    })
+
+    return await nodes_collection.find_one({ '_id': result.inserted_id })
+
+from ..db import objects_collection
+
+class CreateNodeFromObjectRequest(pydantic.BaseModel):
+    position: t.Annotated[Position, fastapi.Body()]
+
+@router.post('/api/projects/{project_id}/objects/{object_id}/nodes', tags=['nodes'])
+async def create_node_from_object(
+    project_id: str,
+    object_id: str,
+    body: CreateNodeFromObjectRequest
+) -> Node:
+    
+    obj = await objects_collection.find_one({ '_id': ObjectId(object_id) })
+
+    if obj is None:
+        raise fastapi.HTTPException(status_code=404, detail='object not found')
+
+    result = await nodes_collection.insert_one({
+        'project_id': ObjectId(project_id),
+        'type': obj['tp'],
+        'data': obj['data'],
+        'position': body.position.model_dump(mode='json'),
+        'object_id': ObjectId(object_id)
     })
 
     return await nodes_collection.find_one({ '_id': result.inserted_id })

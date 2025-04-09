@@ -114,7 +114,7 @@ interface BoardProps {
 
 export default ({ projectId }: BoardProps) => {
     const ref = useRef<HTMLDivElement>(null);
-    const { nodes, setNodes, edges, setEdges } = useBoard();
+    const { nodes, setNodes, edges, setEdges, reactFlowInstance, setReactFlowInstance } = useBoard();
 
     useEffect(() => {
         fetchBoard(projectId).then(e => {
@@ -131,7 +131,7 @@ export default ({ projectId }: BoardProps) => {
         [],
     );
 
-    const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance>();
+    // const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance>();
 
     const onNodesChange = useCallback(
         (changes: any) => {
@@ -149,7 +149,7 @@ export default ({ projectId }: BoardProps) => {
     const mousePosition = useRef({ x: 0, y: 0 });
 
     return (
-        <Box padding={'0.4rem'} border={'1px solid black'} width={'100%'} height={'80vh'} position={'relative'}>
+        <Box height={'100%'} position={'relative'}>
             <ReactFlow
                 ref={ref}
                 nodes={nodes}

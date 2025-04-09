@@ -15,6 +15,7 @@ import ProjectPage from './pages/ProjectPage';
 import { QueryClient, QueryClientProvider } from 'react-query';
 import ProjectsPage from './pages/ProjectsPage';
 import { TestPage } from "./pages/TestPage.tsx";
+import PDFViewer from "./pages/PDFViewer/index.tsx";
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
     'pdfjs-dist/build/pdf.worker.min.mjs',
@@ -26,8 +27,8 @@ function Layout() {
 
     return (
         <Box>
-            <Header />
-            <Stack direction={'row'} gap={1} marginTop={'0.5em'}>
+            {/* <Header /> */}
+            <Stack direction={'row'} gap={1}>
                 {
                     !location.pathname.startsWith('/r') && !location.pathname.startsWith('/p') ?
                     <SideBar />
@@ -67,6 +68,10 @@ const router = createBrowserRouter([
             {
                 path: '/ptest',
                 element: <TestPage />
+            },
+            {
+                path: '/pview',
+                element: <PDFViewer />
             }
         ]
     }

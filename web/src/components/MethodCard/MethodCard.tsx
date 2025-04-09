@@ -123,7 +123,8 @@ const COMPONENTS = new Map([
     [ 'str', StringInput ],
     [ 'text', TextInput ],
     [ 'file', FileInput ],
-    [ 'pdf', PDFInput ]
+    [ 'pdf', PDFInput ],
+    [ 'object', PDFInput ],
 ]);
 
 interface Input {
@@ -186,8 +187,6 @@ interface MethodCardProps {
 export default function MethodCard({ agent, method, onStart, defaultValues, borrowedFields }: MethodCardProps) {
     const { register, handleSubmit, setValue, control } = useForm({ defaultValues });
     const [data, setData] = useState("");
-
-    console.log(defaultValues, 'defaultValues')
     
     const handleStartTask = (data: any) => {
         console.log(data);
@@ -228,14 +227,13 @@ export default function MethodCard({ agent, method, onStart, defaultValues, borr
                                 <Box>
                                     <Box display={'flex'} alignItems={'center'}  gap={'0.5em'}>
                                         <Typography fontWeight={800} variant='subtitle1' >{e.name}:</Typography>
-                                        <Typography variant='subtitle1' fontStyle={'italic'}>{e.type}</Typography>
+                                        <Typography variant='subtitle1' fontStyle={'italic'}>{e.type.name}</Typography>
                                         <Typography variant='body2' color='grey' padding={'0 0.5em'} maxWidth={'30em'}>
-                                            {/* Files for processing using prompt. Multiple files will be processed independenlty. */}
                                             Annotation will be there later.
                                         </Typography>
                                     </Box>
                                 </Box>
-                                {COMPONENTS.get(e.type)?.({ register, name: e.name, control })}
+                                {COMPONENTS.get(e.type.name)?.({ register, name: e.name, control })}
                             </Box>
                         ))
                     }

@@ -14,6 +14,7 @@ TYPE_NAMES = {
     bytes: 'bytes',
     ytypes.Image: 'image',
     ytypes.Object: 'object',
+    list: 'list',
     # Stream: 'stream'
 }
 
@@ -47,7 +48,7 @@ DESERIALIZERS: dict[t.Any, t.Callable] = {
     float: lambda v: float(v),
     ytypes.Image: cvt_image,
     ytypes.Text: lambda v: str(v),
-    ytypes.Object: lambda v: ytypes.Object.model_validate(v)
+    ytypes.Object: lambda v: ytypes.Object.model_validate(v),
     # Stream: handle_stream
 }
 
@@ -149,8 +150,20 @@ def get_input_dict(fn) -> dict[str, InputTyping]:
                     args=type_args
                 )
             else:
-                raise KeyError(f'type {tp} has not got deserializer')
+                input_type = handle_tp(tp)
+                inputs_dict[name] = InputTyping(
+                    name=TYPE_NAMES[input_type.tp],
+                    source_tp=input_type.tp,
+                    target_tp=input_type.tp,
+                    optional=param.default is not inspect.Parameter.empty,
+                    args=input_type.args
+                )
+                # raise KeyError(f'type {tp} has not got deserializer')
     return inputs_dict
+
+
+def handle_arg(data: dict, tp: Type):
+    return DESERIALIZERS[tp.tp](data)
 
 
 def handle_args(data: dict, inputs: dict[str, InputTyping], ctx: dict = {}):
@@ -179,6 +192,10 @@ def handle_args(data: dict, inputs: dict[str, InputTyping], ctx: dict = {}):
 
         if issubclass(input.source_tp, pydantic.BaseModel):
             value = input.source_tp.model_validate(raw_value)
+        elif input.source_tp is list:
+            if type(raw_value) is not list:
+                raise TypeError('input type is not list')
+            value = [handle_arg(rv, input.args[0]) for rv in raw_value]
         else:
             value = DESERIALIZERS[source_tp](raw_value)
 

@@ -227,7 +227,7 @@ class Hub(hub_pb2_grpc.HubServicer):
             for m in a.methods:
                 methods.append(hub_pb2.Method(
                     name=m.name,
-                    inputs=[hub_pb2.Input(name=i.name, type=i.type) for i in m.inputs]
+                    inputs=[hub_pb2.Input(name=i.name, type=i.type.name) for i in m.inputs]
                 ))
 
             result.append(hub_pb2.Agent(

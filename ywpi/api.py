@@ -1,6 +1,7 @@
 import json
 
 import grpc
+import pydantic
 
 from . import settings
 from . import hub_pb2
@@ -23,10 +24,15 @@ class Method:
         if len(args):
             raise RuntimeError('ywpi method can not recieve positional args')
 
+        params = {
+            key: value.model_dump(mode='json') if isinstance(value, pydantic.BaseModel) else value
+            for key, value in kwargs.items()
+        }
+
         response: hub_pb2.RunTaskResponse = hub_stub.RunTask(hub_pb2.PushTaskRequest(
             agent_id=self.agent_id,
             method=self.name,
-            params=json.dumps(kwargs)
+            params=json.dumps(params)
         ))
 
         if response.HasField('error'):

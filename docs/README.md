@@ -2,6 +2,7 @@ Ywpi
 ----
 
 Платформа позволяет интерактивно подключать пользовательские алгоритмы для обработки данных.
+Platform is a data lake extented by methods (or tools). In other words system for controlling large language model context (tools, resources, indexes). The platfrom will support Model Contrzt Protocol in future releases.
 
 # Quick start
 
@@ -31,7 +32,22 @@ ywpi.serve('MyIdentifier')
 
 ![](greetings_method.png)
 
+# LLM Agent example
+```python
+import ywpi
 
+@ywpi.method
+def greeting_chat(message: ywpi.Message, thread_id: ywpi.Context[str]):
+    # Some complex logic
+    return ywpi.Message(
+        content=f'Hello, {message}'
+    )
+```
+
+Run using ywpi cli:
+```bash
+ywpi run --reload agent.py
+```
 
 # Documentation
 

@@ -6,7 +6,6 @@ import enum
 
 from .handle_args import get_input_dict, InputTyping, get_output_dict, Type
 
-
 class Spec(enum.Enum):
     API_METHOD = '__ywpi_api_method__'
     CLASS_API_METHODS = '__ywpi_class_api_methods__'
@@ -60,34 +59,42 @@ class RegisteredMethod:
     inputs: dict[str, InputTyping]
     outputs: dict[str, Type]
     description: typing.Optional[str] = None
+    labels: typing.Optional[list[str]] = None
 
 
 REGISTERED_METHODS: dict[str, RegisteredMethod] = {}
 DEFAULT_DESCRIPTION = 'No description provided'
 
 
-def _register_method(func, description: str = DEFAULT_DESCRIPTION):
+def _register_method(func, description: str = None, labels: list[str] = None):
     inputs = get_input_dict(func)
     outputs = get_output_dict(func)
+
+    if description is None:
+        description = func.__doc__
+
     REGISTERED_METHODS[func.__name__] = RegisteredMethod(
         fn=func,
         inputs=inputs,
         outputs=outputs,
-        description=description
+        description=description,
+        labels=labels
     )
     return func
 
 
-def method(func=None, description: str = None):
+def method(func=None, description: str = None, labels: list[str] = None):
     if func is None:
         def wrapper(func):
             return _register_method(
                 func=func,
-                description=description
+                description=description,
+                labels=labels,
             )
         return wrapper
     else:
         return _register_method(
             func=func,
-            description=description
+            description=description,
+            labels=labels,
         )

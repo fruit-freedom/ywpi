@@ -2,6 +2,7 @@ import dataclasses
 import typing as t
 import inspect
 import pydantic
+import pydantic_core
 
 from ywpi import types as ytypes
 # from ywpi.stream import Stream
@@ -14,6 +15,7 @@ TYPE_NAMES = {
     bytes: 'bytes',
     ytypes.Image: 'image',
     ytypes.Object: 'object',
+    ytypes.Context: 'context',
     list: 'list',
     # Stream: 'stream'
 }
@@ -49,6 +51,7 @@ DESERIALIZERS: dict[t.Any, t.Callable] = {
     ytypes.Image: cvt_image,
     ytypes.Text: lambda v: str(v),
     ytypes.Object: lambda v: ytypes.Object.model_validate(v),
+    ytypes.Context: lambda v: ytypes.Context.model_validate(v),
     # Stream: handle_stream
 }
 
@@ -81,7 +84,12 @@ class InputTyping:
     optional: bool = False
     json_repr: t.Optional[t.Union[int, str, float, dict, list]] = None
     args: t.Optional[list['Type']] = dataclasses.field(default_factory=list)
+    description: t.Optional[str] = None
 
+
+def handle_pydantic_field(field_info: pydantic.fields.FieldInfo):
+    # Return tuple (description, optional)
+    return (field_info.description, not isinstance(field_info.default, pydantic_core.PydanticUndefinedType))
 
 def get_input_dict(fn) -> dict[str, InputTyping]:
     """
@@ -93,6 +101,12 @@ def get_input_dict(fn) -> dict[str, InputTyping]:
         if param.annotation is inspect.Parameter.empty:
             raise TypeError(f'argument {name} must has annotation (before llm)')
         tp = param.annotation
+
+        if isinstance(param.default, pydantic.fields.FieldInfo):
+            description, optional = handle_pydantic_field(param.default)
+        else:
+            description, optional = None, param.default is not inspect.Parameter.empty
+
         if t.get_origin(tp) is t.Annotated:
             target_tp = tp.__origin__
             source_tp = tp.__metadata__[0]
@@ -110,7 +124,8 @@ def get_input_dict(fn) -> dict[str, InputTyping]:
                 name=TYPE_NAMES[source_tp],
                 source_tp=source_tp,
                 target_tp=target_tp,
-                optional=param.default is not inspect.Parameter.empty
+                optional=optional,
+                description=description
             )
         else:
             target_tp = tp
@@ -124,14 +139,15 @@ def get_input_dict(fn) -> dict[str, InputTyping]:
                     name=TYPE_NAMES[source_tp],
                     source_tp=target_tp,
                     target_tp=target_tp,
-                    optional=param.default is not inspect.Parameter.empty
+                    optional=optional,
+                    description=description
                 )
             elif issubclass(target_tp, pydantic.BaseModel):
                 source_tp = target_tp
 
                 args = pydantic._internal._generics.get_args(source_tp)
 
-                type_args = None
+                type_args = []
                 if len(args):
                     source_tp = pydantic._internal._generics.get_origin(source_tp)
                     arg0 = args[0]
@@ -146,8 +162,9 @@ def get_input_dict(fn) -> dict[str, InputTyping]:
                     name=TYPE_NAMES[source_tp],
                     source_tp=target_tp,
                     target_tp=target_tp,
-                    optional=param.default is not inspect.Parameter.empty,
-                    args=type_args
+                    args=type_args,
+                    optional=optional,
+                    description=description
                 )
             else:
                 input_type = handle_tp(tp)

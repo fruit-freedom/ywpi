@@ -48,16 +48,18 @@ class Message(_message.Message):
     def __init__(self, reply_to: _Optional[str] = ..., request: _Optional[_Union[RequestMessage, _Mapping]] = ..., response: _Optional[_Union[ResponseMessage, _Mapping]] = ...) -> None: ...
 
 class PushTaskRequest(_message.Message):
-    __slots__ = ("agent_id", "method", "params", "payload")
+    __slots__ = ("agent_id", "method", "params", "payload", "task_stream_id")
     AGENT_ID_FIELD_NUMBER: _ClassVar[int]
     METHOD_FIELD_NUMBER: _ClassVar[int]
     PARAMS_FIELD_NUMBER: _ClassVar[int]
     PAYLOAD_FIELD_NUMBER: _ClassVar[int]
+    TASK_STREAM_ID_FIELD_NUMBER: _ClassVar[int]
     agent_id: str
     method: str
     params: str
     payload: str
-    def __init__(self, agent_id: _Optional[str] = ..., method: _Optional[str] = ..., params: _Optional[str] = ..., payload: _Optional[str] = ...) -> None: ...
+    task_stream_id: str
+    def __init__(self, agent_id: _Optional[str] = ..., method: _Optional[str] = ..., params: _Optional[str] = ..., payload: _Optional[str] = ..., task_stream_id: _Optional[str] = ...) -> None: ...
 
 class PushTaskResponse(_message.Message):
     __slots__ = ("task_id", "error")

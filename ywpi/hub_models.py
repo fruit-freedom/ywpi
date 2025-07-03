@@ -18,6 +18,12 @@ class Type(pydantic.BaseModel):
 class Field(pydantic.BaseModel):
     name: str
     type: Type
+    description: t.Optional[str] = None
+
+
+class Label(pydantic.BaseModel):
+    name: str
+    value: t.Optional[str] = None
 
 
 class Method(pydantic.BaseModel):
@@ -25,6 +31,7 @@ class Method(pydantic.BaseModel):
     inputs: list[Field]
     outputs: list[Field]
     description: t.Optional[str] = None
+    labels: t.Optional[list[Label]] = None
 
 
 class RegisterAgentRequest(pydantic.BaseModel):
@@ -47,6 +54,10 @@ class StartTaskRequest(pydantic.BaseModel):
 
 class StartTaskResponse(pydantic.BaseModel):
     status: str = 'success'
+
+
+class StartTrackinTaskResponse(pydantic.BaseModel):
+    id: str
 
 
 class UpdateTaskRequest(pydantic.BaseModel):

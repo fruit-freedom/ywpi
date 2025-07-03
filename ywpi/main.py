@@ -125,7 +125,8 @@ class SimpleMethodExecuter:
                         type=hub_models.Type(
                             name=input.name,
                             args=[hub_models.Type(name=a.name) for a in input.args]
-                        )
+                        ),
+                        description=input.description
                     )
                     for input_name, input in registered_method.inputs.items()
                 ],
@@ -139,7 +140,8 @@ class SimpleMethodExecuter:
                     )
                     for output_name, output in registered_method.outputs.items()
                 ],
-                description=registered_method.description
+                description=registered_method.description,
+                labels=list(map(lambda e: hub_models.Label(name=e), registered_method.labels)) if registered_method.labels else None
             ))
             self.calls[name] = registered_method.fn
             self.method_input_dicts[name] = registered_method.inputs
@@ -163,7 +165,7 @@ class SimpleMethodExecuter:
             if inspect.isgeneratorfunction(method) or staticgenerator:
                 for outputs in method(**kwargs):
                     try:
-                        io_manager.handle_outputs(outputs)
+                        io_manager.handle_outputs(outputs).result()
                     except TypeError as e:
                         logger.warning(f'Outputs serializations error: {e.args}')
             else:
@@ -175,7 +177,7 @@ class SimpleMethodExecuter:
         finally:
             try:
                 logger.debug(f'Start cleanup steps for task "{io_manager.task_id}"')
-                io_manager.update_task_status(final_status, final_outputs)
+                io_manager.update_task_status(final_status, final_outputs).result()
                 executer._perform_task_cleanup(io_manager.task_id)
             except:
                 logger.error(f'Task cleanup steps error: {traceback.format_exc()}')
@@ -328,6 +330,7 @@ class Exchanger:
     def call_update_task(self, payload: hub_models.UpdateTaskRequest):
         return self.call(hub_pb2.Rpc.RPC_UPDATE_TASK, payload.model_dump_json())
 
+
 def serve(
     id: str,
     name: str = 'Untitled',
@@ -362,3 +365,51 @@ def serve(
             pass
         finally:
             output_channel.close()
+
+
+def track(fn):
+    def decorated(*args, **kwargs):
+        with grpc.insecure_channel(settings.YWPI_HUB_HOST) as grpc_channel:
+            greeter_stub = hub_pb2_grpc.HubStub(grpc_channel)
+            output_channel = Channel()
+            response_iterator = greeter_stub.Connect(iter(output_channel))
+
+            hello_message = hub_models.RegisterAgentRequest(
+                id='id',
+                name='name',
+                project='project',
+                description='description',
+                methods=[],
+            )
+
+            try:
+                exchanger = Exchanger(response_iterator, output_channel, None)
+                result = exchanger.call_register_agent(hello_message)
+                good = result.result()
+                if good.HasField('error'):
+                    logger.error(f'Agent register failed: {good.error}')
+                    raise Exception()
+
+                logger.info(f'Connected to hub {settings.YWPI_HUB_HOST}')
+
+                task = exchanger.call(
+                    hub_pb2.Rpc.RPC_START_TASK,
+                    hub_models.StartTaskRequest(
+                        id='',
+                        method='test',
+                        params={}
+                    ).model_dump_json()
+                )
+                task = hub_models.StartTrackinTaskResponse.model_validate_json(task.result().payload)
+
+                print('Task', task)
+                io_manager = IOManager(task.id, None, exchanger)
+                SimpleMethodExecuter._method_wrapper(io_manager, None, fn, kwargs)
+
+                # exchanger.finish.result()
+            except KeyboardInterrupt:
+                pass
+            finally:
+                output_channel.close()
+
+    return decorated

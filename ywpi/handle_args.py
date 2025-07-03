@@ -4,7 +4,7 @@ import inspect
 import pydantic
 import pydantic_core
 
-from ywpi import types as ytypes
+from ywpi import ytypes
 # from ywpi.stream import Stream
 
 TYPE_NAMES = {

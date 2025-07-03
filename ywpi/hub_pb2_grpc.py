@@ -59,6 +59,11 @@ class HubStub(object):
                 request_serializer=ywpi_dot_hub__pb2.GetAgentsListRequest.SerializeToString,
                 response_deserializer=ywpi_dot_hub__pb2.GetAgentsListResponse.FromString,
                 _registered_method=True)
+        self.SubscribeOnAgents = channel.unary_stream(
+                '/Hub/SubscribeOnAgents',
+                request_serializer=ywpi_dot_hub__pb2.SubscribeOnAgentsRequest.SerializeToString,
+                response_deserializer=ywpi_dot_hub__pb2.SubscribeOnAgentsResponse.FromString,
+                _registered_method=True)
 
 
 class HubServicer(object):
@@ -88,6 +93,12 @@ class HubServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def SubscribeOnAgents(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_HubServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -110,6 +121,11 @@ def add_HubServicer_to_server(servicer, server):
                     servicer.GetAgentsList,
                     request_deserializer=ywpi_dot_hub__pb2.GetAgentsListRequest.FromString,
                     response_serializer=ywpi_dot_hub__pb2.GetAgentsListResponse.SerializeToString,
+            ),
+            'SubscribeOnAgents': grpc.unary_stream_rpc_method_handler(
+                    servicer.SubscribeOnAgents,
+                    request_deserializer=ywpi_dot_hub__pb2.SubscribeOnAgentsRequest.FromString,
+                    response_serializer=ywpi_dot_hub__pb2.SubscribeOnAgentsResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -220,6 +236,33 @@ class Hub(object):
             '/Hub/GetAgentsList',
             ywpi_dot_hub__pb2.GetAgentsListRequest.SerializeToString,
             ywpi_dot_hub__pb2.GetAgentsListResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def SubscribeOnAgents(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_stream(
+            request,
+            target,
+            '/Hub/SubscribeOnAgents',
+            ywpi_dot_hub__pb2.SubscribeOnAgentsRequest.SerializeToString,
+            ywpi_dot_hub__pb2.SubscribeOnAgentsResponse.FromString,
             options,
             channel_credentials,
             insecure,

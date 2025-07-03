@@ -48,18 +48,16 @@ class Message(_message.Message):
     def __init__(self, reply_to: _Optional[str] = ..., request: _Optional[_Union[RequestMessage, _Mapping]] = ..., response: _Optional[_Union[ResponseMessage, _Mapping]] = ...) -> None: ...
 
 class PushTaskRequest(_message.Message):
-    __slots__ = ("agent_id", "method", "params", "payload", "task_stream_id")
+    __slots__ = ("agent_id", "method", "params", "payload")
     AGENT_ID_FIELD_NUMBER: _ClassVar[int]
     METHOD_FIELD_NUMBER: _ClassVar[int]
     PARAMS_FIELD_NUMBER: _ClassVar[int]
     PAYLOAD_FIELD_NUMBER: _ClassVar[int]
-    TASK_STREAM_ID_FIELD_NUMBER: _ClassVar[int]
     agent_id: str
     method: str
     params: str
     payload: str
-    task_stream_id: str
-    def __init__(self, agent_id: _Optional[str] = ..., method: _Optional[str] = ..., params: _Optional[str] = ..., payload: _Optional[str] = ..., task_stream_id: _Optional[str] = ...) -> None: ...
+    def __init__(self, agent_id: _Optional[str] = ..., method: _Optional[str] = ..., params: _Optional[str] = ..., payload: _Optional[str] = ...) -> None: ...
 
 class PushTaskResponse(_message.Message):
     __slots__ = ("task_id", "error")
@@ -114,3 +112,15 @@ class GetAgentsListResponse(_message.Message):
     AGENTS_FIELD_NUMBER: _ClassVar[int]
     agents: _containers.RepeatedCompositeFieldContainer[Agent]
     def __init__(self, agents: _Optional[_Iterable[_Union[Agent, _Mapping]]] = ...) -> None: ...
+
+class SubscribeOnAgentsRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class SubscribeOnAgentsResponse(_message.Message):
+    __slots__ = ("payload", "error")
+    PAYLOAD_FIELD_NUMBER: _ClassVar[int]
+    ERROR_FIELD_NUMBER: _ClassVar[int]
+    payload: str
+    error: str
+    def __init__(self, payload: _Optional[str] = ..., error: _Optional[str] = ...) -> None: ...

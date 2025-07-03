@@ -91,6 +91,16 @@ def handle_pydantic_field(field_info: pydantic.fields.FieldInfo):
     # Return tuple (description, optional)
     return (field_info.description, not isinstance(field_info.default, pydantic_core.PydanticUndefinedType))
 
+
+def get_type_name(tp):
+    if tp not in TYPE_NAMES:
+        if issubclass(tp, pydantic.BaseModel):
+            return tp.__name__
+        raise TypeError('Type should be registered in `TYPE_NAMES`')
+
+    return TYPE_NAMES[tp]
+
+
 def get_input_dict(fn) -> dict[str, InputTyping]:
     """
     Retrieve typing from function arguments
@@ -121,7 +131,7 @@ def get_input_dict(fn) -> dict[str, InputTyping]:
                 source_tp = t.get_origin(source_tp)
 
             inputs_dict[name] = InputTyping(
-                name=TYPE_NAMES[source_tp],
+                name=get_type_name(source_tp),
                 source_tp=source_tp,
                 target_tp=target_tp,
                 optional=optional,
@@ -136,7 +146,7 @@ def get_input_dict(fn) -> dict[str, InputTyping]:
             if target_tp in DESERIALIZERS:
                 source_tp = target_tp
                 inputs_dict[name] = InputTyping(
-                    name=TYPE_NAMES[source_tp],
+                    name=get_type_name(source_tp),
                     source_tp=target_tp,
                     target_tp=target_tp,
                     optional=optional,
@@ -153,13 +163,13 @@ def get_input_dict(fn) -> dict[str, InputTyping]:
                     arg0 = args[0]
                     type_args = [
                         Type(
-                            name=TYPE_NAMES[arg0],
+                            name=get_type_name(arg0),
                             tp=arg0,
                         )
                     ]
 
                 inputs_dict[name] = InputTyping(
-                    name=TYPE_NAMES[source_tp],
+                    name=get_type_name(source_tp),
                     source_tp=target_tp,
                     target_tp=target_tp,
                     args=type_args,
@@ -169,7 +179,7 @@ def get_input_dict(fn) -> dict[str, InputTyping]:
             else:
                 input_type = handle_tp(tp)
                 inputs_dict[name] = InputTyping(
-                    name=TYPE_NAMES[input_type.tp],
+                    name=get_type_name(input_type.tp),
                     source_tp=input_type.tp,
                     target_tp=input_type.tp,
                     optional=param.default is not inspect.Parameter.empty,

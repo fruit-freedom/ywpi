@@ -1,9 +1,22 @@
-import pydantic
+import typing as t
 import io
-import pymupdf
+
+import pydantic
+import requests
+
 from ywpi.handle_args import TYPE_CONVERTERS, DESERIALIZERS, TYPE_NAMES
 
-import requests
+
+try:
+    import pymupdf
+
+    def to_pymupdf_document(pdf: 'PDF') -> pymupdf.Document:
+        return pymupdf.Document(stream=pdf._download_file())
+
+    TYPE_CONVERTERS[('PDF', pymupdf.Document)] = to_pymupdf_document
+except:
+    pass
+
 
 class PDF(pydantic.BaseModel):
     name: str
@@ -61,17 +74,22 @@ class DocumentText(pydantic.BaseModel):
 TYPE_NAMES[DocumentText] = 'document_text'
 DESERIALIZERS[PDF] = PDF.from_data
 
-try:
-    import pymupdf
 
-    def to_pymupdf_document(pdf: PDF) -> pymupdf.Document:
-        return pymupdf.Document(stream=pdf._download_file())
+class Message(pydantic.BaseModel):
+    id: t.Optional[str] = None
+    role: str
+    content: str
+TYPE_NAMES[Message] = 'message'
 
-    TYPE_CONVERTERS[(PDF, pymupdf.Document)] = to_pymupdf_document
-except:
-    pass
+
+class Chat(pydantic.BaseModel):
+    messages: list[Message]
+TYPE_NAMES[Chat] = 'chat'
+
 
 __all__ = (
     'PDF',
     'DocumentText',
+    'Message',
+    'Chat'
 )

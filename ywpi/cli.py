@@ -2,11 +2,14 @@ import importlib
 import argparse
 import sys
 import os
+from pathlib import Path
 
 import watchfiles
 
 import ywpi
 from ywpi.logger import logger
+import ywpi.stub
+import ywpi.stub.generation
 
 parser = argparse.ArgumentParser()
 command_subparsers = parser.add_subparsers(dest='command')
@@ -19,6 +22,9 @@ run_parser.add_argument('--project', type=str, help='Project ID')
 run_parser.add_argument('--reload', action='store_true', help='Enable auto reloading', default=False)
 
 command_subparsers.add_parser('methods')
+
+sync_parser = command_subparsers.add_parser('sync')
+sync_parser.add_argument('stub_file_path', help='Path to file with stub. Example: app/stub.py')
 
 
 def perform_run_command(args):
@@ -44,6 +50,17 @@ def perform_run_command(args):
     ywpi.serve(args.id, args.name, **kwargs)
 
 
+def perform_sync(args):
+    stub_file_path = Path(args.stub_file_path)
+    pyi_file_path = stub_file_path.with_suffix(".pyi")
+
+    methods = ywpi.get_methods()
+    content = ywpi.stub.generation.generate_stub_file_content(methods)
+    
+    with open(pyi_file_path, 'w') as file:
+        file.write(content)
+
+
 def main():
     args = parser.parse_args()
 
@@ -59,6 +76,8 @@ def main():
     elif args.command == 'methods':
         for m in ywpi.get_methods():
             print(f'{m.agent_id}/{m.name}')
+    elif args.command == 'sync':
+        perform_sync(args)
 
 
 if __name__ == '__main__':

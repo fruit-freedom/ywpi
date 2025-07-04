@@ -20,6 +20,7 @@ setup(
     packages=[
         'ywpi',
         'ywpi.api',
+        'ywpi.stub'
     ],
     install_requires=read_requirements('requirements.txt'),
     entry_points={

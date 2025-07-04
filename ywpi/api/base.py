@@ -2,7 +2,6 @@ import json
 
 import grpc
 import pydantic
-from langchain.tools import BaseTool
 
 from ywpi import settings
 from ywpi import hub_pb2

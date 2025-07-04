@@ -1,0 +1,5 @@
+aio_pika
+aiochannel
+grpcio-tools==1.64.0
+pydantic
+bson

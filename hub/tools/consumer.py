@@ -4,7 +4,7 @@ import json
 from aio_pika import connect
 from aio_pika.abc import AbstractIncomingMessage
 
-from settings import RQ_EXCHANGE_NAME, RQ_CONNECTION_STRING
+from hub.settings import RQ_EXCHANGE_NAME, RQ_CONNECTION_STRING
 
 QUEUE_NAME = 'server.events'
 

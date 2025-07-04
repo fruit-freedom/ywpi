@@ -6,6 +6,8 @@ service Hub {
     rpc PushTask(PushTaskRequest) returns (PushTaskResponse);
     rpc RunTask(PushTaskRequest) returns (RunTaskResponse);
     rpc GetAgentsList(GetAgentsListRequest) returns (GetAgentsListResponse);
+
+    rpc SubscribeOnAgents(SubscribeOnAgentsRequest) returns (stream SubscribeOnAgentsResponse);
 }
 
 /****************************************************
@@ -95,4 +97,14 @@ message Agent {
 
 message GetAgentsListResponse {
     repeated Agent agents = 1;
+}
+
+
+
+message SubscribeOnAgentsRequest {
+}
+
+message SubscribeOnAgentsResponse {
+    optional string payload = 1;
+    optional string error = 2;
 }

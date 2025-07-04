@@ -92,6 +92,11 @@ class Exchanger:
                 response = await self._rpc_update_task(
                     hub_models.UpdateTaskRequest.model_validate_json(request.payload)
                 )
+            elif request.rpc == hub_pb2.Rpc.RPC_START_TASK:
+                # Start self task (tracking)
+                response = await self._rpc_start_task(
+                    hub_models.StartTaskRequest.model_validate_json(request.payload)
+                )
             else:
                 raise NotImplementedError(f'rpc {hub_pb2.Rpc.Name(request.rpc)} not implemented')
             
@@ -161,6 +166,17 @@ class Exchanger:
             await tasks.update_status(payload.id, payload.status)
 
         return hub_models.UpdateTaskResponse()
+
+    async def _rpc_start_task(self, payload: hub_models.StartTaskRequest) -> hub_models.StartTaskResponse:
+        """Start self task (tracking)"""
+        if self._agent_description is None:
+            raise AgentProtocolError('Agent not registered')
+
+        task = await tasks.add(self.agent_id, method=payload.method, inputs=payload.params)
+        print('Created task', task)
+
+        # TODO: Return task ID
+        return hub_models.StartTrackinTaskResponse(id=task.id)
 
     async def start_task(self, payload: hub_models.StartTaskRequest) -> hub_models.StartTaskResponse:
         if self._agent_description is None:
@@ -236,6 +252,10 @@ class Hub(hub_pb2_grpc.HubServicer):
                 methods=methods
             ))
         return hub_pb2.GetAgentsListResponse(agents=result)
+
+    async def SubscribeOnAgents(self, request: hub_pb2.SubscribeOnAgentsRequest, context: grpc.ServicerContext):
+        async for event in agents.subscribe_on_updates():
+            yield hub_pb2.SubscribeOnAgentsResponse(payload=json.dumps(event))
 
 
 async def main():

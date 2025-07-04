@@ -1,5 +1,3 @@
 __pycache__
 venv
 build
-hub/*pb*
-server/*pb*

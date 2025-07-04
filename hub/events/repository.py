@@ -6,7 +6,7 @@ from aio_pika import Message, connect
 import aio_pika
 
 from . import models
-import settings
+from hub import settings
 
 logging.getLogger().setLevel(logging.INFO)
 

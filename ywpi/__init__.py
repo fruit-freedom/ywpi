@@ -7,3 +7,4 @@ from .api import *
 
 # Additonal document platform specific functionality
 from .additional_types import *
+from .stub.getattr import stub_getattr

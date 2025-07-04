@@ -19,6 +19,7 @@ setup(
     python_requires=">=3.10",
     packages=[
         'ywpi',
+        'ywpi.api',
     ],
     install_requires=read_requirements('requirements.txt'),
     entry_points={

@@ -2,7 +2,10 @@ import typing as t
 import io
 
 import pydantic
-import requests
+try:
+    import requests
+except:
+    pass
 
 from ywpi.handle_args import TYPE_CONVERTERS, DESERIALIZERS, TYPE_NAMES
 

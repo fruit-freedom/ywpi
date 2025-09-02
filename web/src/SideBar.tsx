@@ -59,6 +59,31 @@ export default function () {
                                             key={method.name}
                                         >
                                             <Typography fontWeight={'600'}>{method.name}</Typography>
+                                            <Stack direction={'row'} flexWrap={'wrap'} gap={0.5}>
+                                        {
+                                            method.labels?.map(t => (
+                                                <Typography
+                                                    variant="caption"
+                                                    sx={{
+                                                        cursor: 'pointer',
+                                                        borderRadius: '4px',
+                                                        color: 'grey',
+                                                        border: '1px solid lightgrey',
+                                                        padding: '0 0.2rem',
+                                                        width: 'min-content',
+                                                        display: 'flex',
+                                                        alignItems: 'center'
+                                                    }}
+                                                    fontWeight={700}
+                                                    noWrap
+                                                    key={t.name}
+                                                >
+                                                    {t.name}
+                                                    { t.value ? <span>: {t.value}</span> : null}
+                                                </Typography>
+                                            ))
+                                        }
+                                        </Stack>
                                             {/* <Box>
                                                 <IconButton
                                                     size='small'

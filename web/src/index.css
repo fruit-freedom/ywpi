@@ -22,10 +22,11 @@ code {
 
 ::-webkit-scrollbar-track {
   width: 4px;
-  border-radius: 16px
+  border-radius: 16px;
 }
 
 ::-webkit-scrollbar {
   background-color: #fff;
   width: 4px;
+  height: 4px;
 }

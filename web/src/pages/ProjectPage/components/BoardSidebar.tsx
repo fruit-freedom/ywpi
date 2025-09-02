@@ -1,4 +1,4 @@
-import { Paper, Stack, Box, Typography, Button, Modal, TextField, Drawer } from "@mui/material"
+import { Paper, Stack, Box, Typography, Button, Modal, TextField, Drawer, Autocomplete } from "@mui/material"
 import { useRef, useState } from "react"
 import { ObjectsList } from "./ObjectsList";
 
@@ -19,6 +19,11 @@ export const BoardSidebar = ({ projectId }: BoardSidebarProps) => {
         value: '',
         helperText: 'Write document name (e.g. RIPOST: Two-Phase Private Decomposition for Multidimensional Data)',
         error: false,
+    });
+    const [labels, setLabels] = useState<{ value: { name: string }[]; helperText: string; error: boolean }>({
+        value: [{ name: 'tes' }],
+        helperText: 'Write labels (e.g. cs.AI, LLM, Database and etc)',
+        error: false
     });
 
     const createDocument = () => {
@@ -41,12 +46,13 @@ export const BoardSidebar = ({ projectId }: BoardSidebarProps) => {
                 tp: 'pdf',
                 data: {
                     name: name.value,
-                    src: link.value
+                    src: link.value,
                 },
                 position: {
                     x: 0,
                     y: 0
-                }
+                },
+                labels: labels.value
             })
         })
         .then(console.log)
@@ -55,7 +61,7 @@ export const BoardSidebar = ({ projectId }: BoardSidebarProps) => {
         setModalOpen(false);
     }
 
-    const [searchOpen, setSearchOpen] = useState(true);
+    const [searchOpen, setSearchOpen] = useState(false);
 
     return (
         <>
@@ -77,7 +83,7 @@ export const BoardSidebar = ({ projectId }: BoardSidebarProps) => {
                     </Button>
                 </Stack>
             </Stack>
-            <Drawer open={searchOpen} onClose={() => setSearchOpen(false)} PaperProps={{ sx: {  } }}>
+            <Drawer open={searchOpen} onClose={() => setSearchOpen(false)} PaperProps={{ sx: { minWidth: '25%' } }}>
                 <ObjectsList projectId={projectId}/>
             </Drawer>
             <Modal open={modalOpen} onClose={() => setModalOpen(false)}>
@@ -102,6 +108,20 @@ export const BoardSidebar = ({ projectId }: BoardSidebarProps) => {
                             onChange={(e) => setLink(prev => ({...prev, value: e.target.value}))}
                             label={'PDF Link'}
                             {...link}
+                        />
+                        <Autocomplete
+                            multiple
+                            options={[]}
+                            freeSolo
+                            onChange={(event, val) => setLabels(prev => ({ ...prev, value: val.map(e => ({ name: e })) }))}
+                            renderInput={(params) => (
+                                <TextField
+                                    {...params}
+                                    variant="outlined"
+                                    label="Labels"
+                                    placeholder="Labels"
+                                />
+                            )}
                         />
                         <Button
                             variant='contained'

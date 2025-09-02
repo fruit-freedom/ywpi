@@ -1,6 +1,6 @@
 import { useRef, useCallback, useEffect, useState } from "react";
 
-import { Box, Button, Paper, Stack, TextField, Typography } from "@mui/material"
+import { Box, Button, Chip, Paper, Stack, TextField, Typography } from "@mui/material"
 
 import {
     AreaHighlight,
@@ -19,6 +19,7 @@ import type {
 } from "react-pdf-highlighter";
 
 import "react-pdf-highlighter/dist/style.css"
+import { CheckBox } from "@mui/icons-material";
 
 const getNextId = () => String(Math.random()).slice(2);
 
@@ -209,33 +210,102 @@ const PDFView = ({ highlights, setHighlights, url }: PDFViewProps) => {
     )
 }
 
-export const TestPage = () => {
-    const [highlights, setHighlights] = useState<HighlightData[]>([]);
+interface CategoryProps {
+    id: string;
+    name: string;
+    before?: React.ReactNode;
+    after?: React.ReactNode;
+    childNodes?: {
+        id: string;
+        name: string;
+        children: any[];
+    }[];
+}
 
+const Category = ({ before, after, name, childNodes } : CategoryProps) => {
     return (
-        <Stack direction={'row'}>
-            <Box>
-                <PDFView
-                    objectId=""
-                    url={'https://arxiv.org/pdf/2502.13422'}
-                    highlights={highlights}
-                    setHighlights={setHighlights}
-                />
-            </Box>
-            <Stack flexGrow={1} maxHeight={'80vh'} overflow={'scroll'} gap={1}>
+        <Stack>
+            <Stack direction={'row'} gap={1} alignItems={'center'}>
+                {before}
+                <Typography>{name}</Typography>Ум
+                {after}
+            </Stack>
+            <Stack>
                 {
-                    highlights.map(e => (
-                        <Paper sx={{ bgcolor: 'lightgray' }}>
-                            <Stack padding={'1rem'}>
-                                <Typography fontWeight={700}>{e.header}</Typography>
-                                <Typography>{e.text}</Typography>
-                            </Stack>
-                        </Paper>
+                    childNodes?.map(e => (
+                        <Category id={e.id} name={e.name}/>
                     ))
                 }
             </Stack>
         </Stack>
     )
+}
+
+const categories = [
+    {
+        id: '1',
+        name: 'First',
+        children: [
+            {
+                id: '2',
+                name: 'First-child',        
+            }
+        ]
+    },
+    {
+        id: '3',
+        name: 'Second',
+    }
+]
+
+export const TestPage = () => {
+    const [highlights, setHighlights] = useState<HighlightData[]>([]);
+
+    return (
+        <div>
+            {
+                categories.map(e => (
+                    <Category
+                        id={e.id}
+                        name={e.name}
+                        before={
+                            <CheckBox />
+                        }
+                        after={
+                            <Chip label={'after label'}/>
+                        }
+                        childNodes={e.children}
+                    />
+                        
+                ))
+            }
+        </div>
+    )
+
+    // return (
+    //     <Stack direction={'row'}>
+    //         <Box>
+    //             <PDFView
+    //                 objectId=""
+    //                 url={'https://arxiv.org/pdf/2502.13422'}
+    //                 highlights={highlights}
+    //                 setHighlights={setHighlights}
+    //             />
+    //         </Box>
+    //         <Stack flexGrow={1} maxHeight={'80vh'} overflow={'scroll'} gap={1}>
+    //             {
+    //                 highlights.map(e => (
+    //                     <Paper sx={{ bgcolor: 'lightgray' }}>
+    //                         <Stack padding={'1rem'}>
+    //                             <Typography fontWeight={700}>{e.header}</Typography>
+    //                             <Typography>{e.text}</Typography>
+    //                         </Stack>
+    //                     </Paper>
+    //                 ))
+    //             }
+    //         </Stack>
+    //     </Stack>
+    // )
 }
 
 // export const TestPageV0 = () => {

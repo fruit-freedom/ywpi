@@ -1,18 +1,14 @@
 import { useState } from "react";
-import { Document, Page } from 'react-pdf';
 import 'react-pdf/dist/Page/TextLayer.css';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
-
 import {
     Handle,
     NodeProps,
     Position,
     Node
 } from '@xyflow/react';
-
-
 import { Box, Chip, Modal, Stack, Typography } from "@mui/material";
-import { Viewer, Worker } from "@react-pdf-viewer/core";
+import PDF from "../../../components/PDF";
 
 type PDFNodeType = Node<{ name?: string, src?: string; }>;
 
@@ -22,26 +18,9 @@ export const PDFNode = ({ data, isConnectable }: NodeProps<PDFNodeType>) => {
     return (
         <>
             <Modal open={open} onClose={() => setOpen(false)} sx={{ overflow: 'scroll' }}>
-                <Stack
-                    padding={'1em'}
-                    alignItems={'center'}
-                    color={'grey'}
-                    width={'min-content'}
-                    justifyContent={'center'}
-                >
-                    <Box width={'70vw'} height={'95vh'}>
-                        <Worker workerUrl="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js">
-                            {
-                                data.src ?
-                                <Viewer
-                                    fileUrl={data.src}
-                                    plugins={[]}
-                                />
-                                : null
-                            }
-                        </Worker>
-                    </Box>
-                </Stack>
+                <Box bgcolor={'#fff'} width={'90vw'}>
+                    <PDF objectId={data.objectId} onClose={() => setOpen(false)}/>
+                </Box>
             </Modal>
             <Stack bgcolor={'#fff'} maxWidth={'400px'} padding={'1em'} borderRadius={'4px'}>
                 <Stack direction={'row'} justifyContent={'space-between'}>

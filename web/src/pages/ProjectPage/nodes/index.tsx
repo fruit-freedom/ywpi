@@ -1,8 +1,9 @@
 import { PDFNode } from "./PDFNode";
-import { TextNode, JSONNode, StringListNode, MarkdownNode } from "./TextNodes";
+import { TextNode, JSONNode, StringListNode, MarkdownNode, Chat, Context } from "./TextNodes";
 import { RetrieverNode } from "./RetrieverNode";
 import { ImageNode } from "./ImageNode";
 import { WithWrapper } from "./WithDragHandle";
+import { IssueNode } from "./IssueNode";
 
 export const nodeTypes = {
     image: ImageNode,
@@ -12,4 +13,8 @@ export const nodeTypes = {
     retriever: RetrieverNode,
     strings: StringListNode,
     markdown: MarkdownNode,
+    chat: WithWrapper(Chat),
+    context: WithWrapper(Context),
+    issue: WithWrapper(IssueNode),
 };
+

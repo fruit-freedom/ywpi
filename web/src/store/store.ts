@@ -9,12 +9,18 @@ export interface Type {
 export interface Field {
     name: string;
     type: Type;
+    description?: string;
 }
 
 export interface Output {
     name: string;
     type: string;
     value: any;
+}
+
+export interface Label {
+    name: string;
+    value: string;
 }
 
 export interface Task {
@@ -30,6 +36,7 @@ export interface Method {
     inputs: Field[];
     outputs: Field[];
     description?: string;
+    labels?: Label[];
 }
 
 export interface Agent extends AgentConnectedData {

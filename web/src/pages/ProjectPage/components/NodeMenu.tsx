@@ -1,11 +1,9 @@
-import { useState, ReactNode } from "react";
+import { useState } from "react";
 
-import { Box, Button, IconButton, Menu, MenuItem, Modal, Stack, Typography } from "@mui/material"
+import { Box, IconButton, Menu, MenuItem, Modal, Stack, Typography } from "@mui/material"
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import { MethodWithAgentId, useMethods } from "../store/methods";
 import MethodCard, { BorrowedFields } from "../../../components/MethodCard/MethodCard";
-import BlurOnIcon from '@mui/icons-material/BlurOn';
-
 
 interface NodeMenuProps {
     tp: string;

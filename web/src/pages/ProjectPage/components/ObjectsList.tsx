@@ -1,65 +1,41 @@
-import { Box, IconButton, MenuItem, Paper, Select, Stack, TextField, Typography } from "@mui/material"
-import { useRef, useState } from "react";
+import { IconButton, Paper, Stack, TextField, Typography } from "@mui/material"
+import { useState } from "react";
 import { useQuery } from "react-query"
 import { executeMethod } from "../../../api";
 import { useBoard } from "./Board/store";
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
-import CloseIcon from '@mui/icons-material/Close';
-import PDFHighlightViewer from "../../../components/PDFHighlightViewer";
-
-interface Relation {
-    name: string;
-    object_id: string;
-    source_task_id?: string;
-}
-
-interface Object {
-    id: string;
-    project_id?: string;
-    tp: string;
-    relations: Relation[];
-    data: any;
-}
+import PDF, { DocumentText } from "../../../components/PDF";
+import { NodeMenu } from "./NodeMenu";
 
 interface ObjectsListProps {
     projectId?: string;
 } 
 
-const PDFView = ({ data }: any) => {
-    return (
-        <Typography>{data.name}</Typography>
-    )
-}
-
-const TextView = ({ data }: any) => {
-    return (
-        <Typography>{data.text.slice(0, 150)}{ data.text.length > 150 ? '...' : null }</Typography>
-    )
-}
-
-const components = new Map([
-    ['pdf', PDFView],
-    ['text', TextView]
-]);
-
-interface DocumentText {
-    page_number: number;
-    text: string;
-    x1: number;
-    y1: number;
-    x2: number;
-    y2: number;
-}
 
 interface SearchDocument extends DocumentText {
     object_id: string;
     name: string;
     highlights?: string[];
+    labels?: {
+        name: string;
+        value?: string;
+    }[];
 }
 
 interface SearchResponse {
     data: SearchDocument[];
 }
+
+const TAGS = [
+    // { name: 'Date: 12 of july 2024', color: 'green' },
+    // { name: 'Project: Silicon Walley', color: 'grey' },
+    // { name: 'Type: publication', color: 'orange' },
+    { name: 'Source: arXiv', color: 'grey' },
+    { name: 'arXiv.topic: cs.AI', color: 'grey' },
+    // { name: 'Approved', color: 'green' },
+    // { name: 'Method: build_summary', color: 'green' },
+    // { name: 'Author: А. К. Звездин', color: 'grey' },
+]
 
 export const ObjectsList = ({ projectId }: ObjectsListProps) => {
     const [query, setQuery] = useState<string>();
@@ -111,7 +87,7 @@ export const ObjectsList = ({ projectId }: ObjectsListProps) => {
         .catch(e => console.log(e))
     }
 
-    const [activeSearchResult, setActiveSearchResult] = useState<{ id: string, url: string, texts: DocumentText[] }>();
+    const [activeSearchResult, setActiveSearchResult] = useState<{ id: string, texts: DocumentText[] }>();
 
     return (
         <Stack
@@ -126,16 +102,21 @@ export const ObjectsList = ({ projectId }: ObjectsListProps) => {
                     createPDFNode(d.object_id);
                 }
             }}
+            width={'100%'}
         >
-            <Stack gap={1} width={'30vw'} padding={'0.5rem'} maxHeight={'90vh'} overflow={'scroll'}>
-                <TextField
-                    size='small'
-                    variant='standard'
-                    placeholder="Search query"
-                    onKeyDown={(e) => {
-                        if (e.code == 'Enter') setQuery(e.target.value);
-                    }}
-                />
+            <Stack width={'25vw'} gap={1} padding={'0.5rem'} maxHeight={'100vh'} overflow={'scroll'}>
+                <Stack direction={'row'}>
+                    <TextField
+                        size='small'
+                        variant='standard'
+                        fullWidth
+                        placeholder="Search query"
+                        onKeyDown={(e) => {
+                            if (e.code == 'Enter') setQuery(e.target.value);
+                        }}
+                    />
+                    <NodeMenu tp="pdf"/>
+                </Stack>
                 {
                     searchData?.data?.map((e, idx) => (
                         <div key={e.object_id + idx.toString()} draggable={true} onDragStart={() => setActiveDndObjectId(e.object_id) }>
@@ -143,14 +124,11 @@ export const ObjectsList = ({ projectId }: ObjectsListProps) => {
                                 elevation={4}
                                 sx={{
                                     cursor: 'pointer',
-                                    '&:hover': {
-                                        backgroundColor: 'lightgrey'
-                                    },
                                     backgroundColor: e.object_id === activeSearchResult?.id ? 'lightgrey' : 'unset'
                                 }}
                             >
                                 <Stack direction={'row'} alignItems={'center'} justifyContent={'space-between'}>
-                                    <Stack padding={'0.1rem'} gap={'0.05rem'}>
+                                    <Stack padding={'0.1rem'} gap={'0.1rem'}>
                                         <Typography
                                             sx={{ color: 'grey' }}
                                             variant="caption"
@@ -159,25 +137,47 @@ export const ObjectsList = ({ projectId }: ObjectsListProps) => {
                                         </Typography>
                                         <Typography fontWeight={700}>{e.name}</Typography>
                                         <Typography variant="caption">
-                                            <span dangerouslySetInnerHTML={{ __html: e.highlights?.join('\n') }}/>
+                                            <span dangerouslySetInnerHTML={{ __html: e.highlights?.join('\n') || '' }}/>
                                         </Typography>
+
+                                        <Stack direction={'row'} flexWrap={'wrap'} gap={0.5} mt={'0.5em'}>
+                                            {
+                                                e.labels?.map(t => (
+                                                    <Typography
+                                                        key={t.name}
+                                                        variant="caption"
+                                                        sx={{
+                                                            cursor: 'pointer',
+                                                            borderRadius: '4px',
+                                                            color: '#000',
+                                                            border: '1px solid grey',
+                                                            padding: '0 0.2rem',
+                                                            width: 'min-content',
+                                                            '&:hover': {
+                                                                border: '1px solid lightgrey',
+                                                            }
+                                                        }}
+                                                        fontWeight={700}
+                                                        noWrap
+                                                    >
+                                                        {t.name}
+                                                        { t.value ? <span>: {t.value}</span> : null}
+                                                    </Typography>
+                                                ))
+                                            }
+                                        </Stack>
                                     </Stack>
                                     <IconButton onClick={() => {
-                                        fetch(`/api/objects/${e.object_id}`)
-                                        .then(e => e.json())
-                                        .then(data => {
-                                            setActiveSearchResult({
-                                                id: e.object_id,
-                                                url: data.data.src,
-                                                texts: [{
-                                                    x1: e.x1,
-                                                    y1: e.y1,
-                                                    x2: e.x2,
-                                                    y2: e.y2,
-                                                    page_number: e.page_number,
-                                                    text: e.text
-                                                }]
-                                            })
+                                        setActiveSearchResult({
+                                            id: e.object_id,
+                                            texts: [{
+                                                x1: e.x1,
+                                                y1: e.y1,
+                                                x2: e.x2,
+                                                y2: e.y2,
+                                                page_number: e.page_number,
+                                                text: e.text
+                                            }]
                                         })
                                     }}>
                                         <ArrowForwardIcon />
@@ -187,18 +187,17 @@ export const ObjectsList = ({ projectId }: ObjectsListProps) => {
                         </div>
                     ))
                 }
+                {
+                    searchData?.data?.length === 0 ? 'Nothing found' : null
+                }
             </Stack>
             {
                 activeSearchResult ?
-                <Box width={'50vw'}>
-                    <Stack direction={'row'} justifyContent={'space-between'}>
-                        <div />
-                        <IconButton onClick={() => setActiveSearchResult(undefined)}>
-                            <CloseIcon />
-                        </IconButton>
-                    </Stack>
-                    <PDFHighlightViewer url={activeSearchResult.url} texts={activeSearchResult.texts}/>
-                </Box>
+                <PDF
+                    objectId={activeSearchResult.id}
+                    onClose={() => setActiveSearchResult(undefined)}
+                    documentTexts={activeSearchResult.texts}
+                />
                 : null
             }
         </Stack>

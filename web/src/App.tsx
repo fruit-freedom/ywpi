@@ -1,14 +1,12 @@
 import {
     createBrowserRouter,
     RouterProvider,
-    Outlet,
-    useLocation
+    Outlet
 } from "react-router-dom";
 import { pdfjs } from 'react-pdf';
-import AgentsPage from './pages/AgentsPage';
-import { Box, Stack } from '@mui/material';
+import AgentsPage from "./pages/AgentsPage/index.tsx";
+import { Box } from '@mui/material';
 import Header from './Header';
-import SideBar from './SideBar';
 import MethodPage from './MethodPage';
 import { RetrievePage } from './pages/RetrievePage/RetrievePage';
 import ProjectPage from './pages/ProjectPage';
@@ -16,6 +14,8 @@ import { QueryClient, QueryClientProvider } from 'react-query';
 import ProjectsPage from './pages/ProjectsPage';
 import { TestPage } from "./pages/TestPage.tsx";
 import PDFViewer from "./pages/PDFViewer/index.tsx";
+import ChatPage from "./pages/ChatPage/index.tsx";
+import { ContextPage } from "./pages/ContextPage/index.tsx";
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
     'pdfjs-dist/build/pdf.worker.min.mjs',
@@ -23,20 +23,10 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   ).toString();
   
 function Layout() {
-    const location = useLocation();
-
     return (
         <Box>
-            {/* <Header /> */}
-            <Stack direction={'row'} gap={1}>
-                {
-                    !location.pathname.startsWith('/r') && !location.pathname.startsWith('/p') ?
-                    <SideBar />
-                    :
-                    null
-                }
-                <Outlet />
-            </Stack>
+            <Header />
+            <Outlet />
         </Box>
     );
 }
@@ -46,7 +36,11 @@ const router = createBrowserRouter([
         element: <Layout />,
         children: [
             {
-                path: "*",
+                path: "/chat",
+                element: <ChatPage />
+            },
+            {
+                path: "/agents",
                 element: <AgentsPage />
             },
             {
@@ -58,7 +52,7 @@ const router = createBrowserRouter([
                 element: <RetrievePage />
             },
             {
-                path: '/projects',
+                path: '*',
                 element: <ProjectsPage />
             },
             {
@@ -72,7 +66,11 @@ const router = createBrowserRouter([
             {
                 path: '/pview',
                 element: <PDFViewer />
-            }
+            },
+            {
+                path: '/projects/:projectId/contexts/:contextId',
+                element: <ContextPage />
+            },
         ]
     }
 ]);

@@ -53,11 +53,17 @@ interface Field {
     type: Type;
 }
 
+export interface Label {
+    name: string;
+    value: string;
+}
+
 export interface Method {
     name: string;
     description?: string;
     inputs: Field[];
     outputs: Field[];
+    labels?: Label[];
 }
 
 export enum AgentStatus {
@@ -138,7 +144,11 @@ interface TaskUpdatedData {
 //     };
 // }
 
-export const useEvents = () => {
+interface UseEventsOptions {
+    onEvent?: (event: Event) => void;
+}
+
+export const useEvents = (options?: UseEventsOptions) => {
     const [connectionState, setConnectionState] = useState<ConnectionStateEnum>(ConnectionStateEnum.disconnected);
     const { addTask, updateTaskStatus, updateTaskOutputs, updateAgentStatus, addOrUpdateAgentActivity, setAgents } = useAgents();
 
@@ -157,7 +167,7 @@ export const useEvents = () => {
 
         const handleMessage = (e: any) => {
             const event = JSON.parse(e.data) as Event;
-            console.log(event)
+            console.log('EVENT', event)
 
             if (event.type == EventType.AgentConnected) {
                 const data = event.data as AgentConnectedData;
@@ -180,6 +190,11 @@ export const useEvents = () => {
                     updateTaskOutputs(data.agent_id, data.id, data.outputs);
                 }
             }
+
+            try {
+                options?.onEvent?.(event);
+            }
+            catch { }
         };
 
         const connect = () => {

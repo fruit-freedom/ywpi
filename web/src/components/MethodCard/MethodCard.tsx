@@ -1,9 +1,9 @@
 import React, { useState } from "react";
-import { Paper, TextField, Box, Typography, TextareaAutosize, Chip, Divider, Button } from "@mui/material";
-import styled from "@mui/material/styles/styled";
-import { Control, Controller, useForm } from "react-hook-form";
+import { Paper, TextField, Box, Typography, TextareaAutosize, Chip, Divider, Button, Select, MenuItem } from "@mui/material";
+import { Control, Controller, useFieldArray, useForm } from "react-hook-form";
 
-import { Agent, Method } from "../../store/store";
+import { Agent, Method, Type } from "../../store/store";
+import { ContextInput } from "./ContextInput";
 
 interface InputProps {
     name: string;
@@ -108,7 +108,7 @@ const PDFInput = ({ register, name, control }: InputProps) => {
                         }}
                         minRows={8}
                         style={{ width: '100%', borderColor: 'lightgray' }}
-                        placeholder="Use <text> as placeholder for patent text."
+                        placeholder="{}"
                     />
                 )}
             />
@@ -117,7 +117,46 @@ const PDFInput = ({ register, name, control }: InputProps) => {
 }
 
 
-const COMPONENTS = new Map([
+const JSONInput = ({ register, name, control }: InputProps) => {
+    return (
+        <Box>
+            <Controller
+                name={name}
+                control={control}
+                render={({ field }) => (
+                    <TextareaAutosize
+                        value={JSON.stringify(field.value, null, 2)}
+                        onChange={(e) => {
+                            field.onChange(JSON.parse(e.target.value))
+                        }}
+                        minRows={8}
+                        style={{ width: '100%', borderColor: 'lightgray' }}
+                        placeholder="{}"
+                    />
+                )}
+            />
+        </Box>
+    )
+}
+
+
+const SelectInput = ({ register, name }: InputProps) => {
+    return (
+        <Box width={'200px'}>
+            <Select
+                label="branch"
+                variant='standard'
+                fullWidth
+            >
+                <MenuItem value={"17-web"}>17-web</MenuItem>
+                <MenuItem value={"73-backend"}>73-backend</MenuItem>
+                <MenuItem value={"45-web"}>45-web</MenuItem>
+            </Select>
+        </Box>
+    )
+}
+
+export const COMPONENTS = new Map([
     [ 'int', NumberInput ],
     [ 'float', NumberInput ],
     [ 'str', StringInput ],
@@ -125,6 +164,8 @@ const COMPONENTS = new Map([
     [ 'file', FileInput ],
     [ 'pdf', PDFInput ],
     [ 'object', PDFInput ],
+    [ 'list', PDFInput ],
+    [ 'context', ContextInput ],
 ]);
 
 interface Input {
@@ -155,16 +196,10 @@ const inputs: Input[] = [
     }
 ]
 
-const StartButton = styled(Button)({
-    color: '#fff',
-    borderColor: '#b4b4b4',
-    fontWeight: '600',
-    backgroundColor: '#000',
-    width: '100%',
-    '&:hover': {
-        backgroundColor: '#000',
-    }
-})
+// const StartButton = styled(Button)({
+// })
+
+
 
 export interface BorrowedField {
     path: string;
@@ -183,11 +218,24 @@ interface MethodCardProps {
     borrowedFields?: BorrowedFields;
 }
 
+const getTypeName = (type: Type) => {
+    let result = type.name;
+    if (type.args?.length) {
+        result += `[${type.args[0].name}]`
+    }
+    return result;
+}
+
+
+const getMethodUsage = (agent: Agent, method: Method) => {
+    return `${method.name} = ywpi.get_method("${agent.id}", "${method.name}")`
+}
+
 
 export default function MethodCard({ agent, method, onStart, defaultValues, borrowedFields }: MethodCardProps) {
     const { register, handleSubmit, setValue, control } = useForm({ defaultValues });
     const [data, setData] = useState("");
-    
+
     const handleStartTask = (data: any) => {
         console.log(data);
         setData(JSON.stringify(data));
@@ -201,7 +249,8 @@ export default function MethodCard({ agent, method, onStart, defaultValues, borr
                 agent_id: agent.id,
                 method: method.name,
                 inputs: data,
-                borrowed_fields: borrowedFields
+                borrowed_fields: borrowedFields,
+                require_context: true
             }, (key, value) => { if (value !== null) return value })
         })
         .then(e => e.json())
@@ -216,6 +265,12 @@ export default function MethodCard({ agent, method, onStart, defaultValues, borr
             <Box display={'flex'} flexDirection={'column'}>
                 <Typography fontWeight={600} variant="h3">{method.name}</Typography>
                 <Typography color="grey" variant='body2'>{method.description}</Typography>
+                <Box sx={{ backgroundColor: '#f3f3f3', padding: '0.3rem' }} borderRadius={'4px'}>
+                    <Typography variant='body2'># Usage:</Typography>
+                    <Typography variant='body2'>
+                        {getMethodUsage(agent, method)}
+                    </Typography>
+                </Box>
                 <Divider/>
             </Box>
             <Box>
@@ -227,17 +282,39 @@ export default function MethodCard({ agent, method, onStart, defaultValues, borr
                                 <Box>
                                     <Box display={'flex'} alignItems={'center'}  gap={'0.5em'}>
                                         <Typography fontWeight={800} variant='subtitle1' >{e.name}:</Typography>
-                                        <Typography variant='subtitle1' fontStyle={'italic'}>{e.type.name}</Typography>
+                                        <Typography variant='subtitle1' fontStyle={'italic'}>{getTypeName(e.type)}</Typography>
                                         <Typography variant='body2' color='grey' padding={'0 0.5em'} maxWidth={'30em'}>
-                                            Annotation will be there later.
+                                            {e.description}
                                         </Typography>
                                     </Box>
                                 </Box>
-                                {COMPONENTS.get(e.type.name)?.({ register, name: e.name, control })}
+                                {
+                                    COMPONENTS.has(e.type.name)
+                                    ?
+                                        COMPONENTS.get(e.type.name)?.({ register, name: e.name, control, setValue })
+                                    :
+                                    <>
+                                        <JSONInput register={register} name={e.name} control={control} setValue={setValue}/>
+                                    </>
+                                }
                             </Box>
                         ))
                     }
-                    <StartButton type='submit'>Start</StartButton>
+                    <Button
+                        type='submit'
+                        sx={{
+                            color: '#fff',
+                            borderColor: '#b4b4b4',
+                            fontWeight: '600',
+                            backgroundColor: '#000',
+                            width: '100%',
+                            '&:hover': {
+                                backgroundColor: '#000',
+                            }
+                        }}
+                    >
+                        Start
+                    </Button>
                     </Box>
                 </form>
             </Box>

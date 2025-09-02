@@ -119,6 +119,7 @@ export default ({ projectId }: BoardProps) => {
     useEffect(() => {
         fetchBoard(projectId).then(e => {
             setNodes(() => e.nodes);
+            //  
             setEdges(() => e.edges);
         })
     }, []);
@@ -210,7 +211,11 @@ export default ({ projectId }: BoardProps) => {
                 fitView
                 attributionPosition="bottom-left"
                 minZoom={0.02}
-            >
+ 
+                // panOnScroll
+                // selectionOnDrag
+                // panOnDrag={[1, 2]}          
+                >
                 <Controls />
             </ReactFlow>
         </Box>

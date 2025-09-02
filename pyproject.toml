@@ -1,9 +1,27 @@
-[build-system]
-requires = ["setuptools>=42"]
-build-backend = "setuptools.build_meta"
 
 #[project]
 #name = "ywpi"
 
 #[project.scripts]
 #ywpi = "ywpi.cli:main"
+
+
+
+[tool.uv.sources]
+ywpi = { workspace = true }
+ywpi_hub = { workspace = true }
+server = { workspace = true }
+
+[tool.uv.workspace]
+members = [
+    "packages/ywpi",
+    "packages/ywpi_hub",
+    "packages/server",
+]
+exclude = ["web", "agents", "packages", "repository", "processing"]
+
+[[tool.uv.index]]
+name = "testpypi"
+url = "http://localhost:7080"
+publish-url = "http://localhost:7080"
+explicit = true

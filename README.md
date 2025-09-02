@@ -29,13 +29,6 @@ Run agent:
 ywpi run main.py --id summary-agent
 ```
 
-Go to `https://ywpi.ru/agents` and run method.
-
-
-## Cloud
-
-Website: `https://ywpi.ru`
-Hub: `https://hub.ywpi.ru`
 
 ## Run builtin methods
 

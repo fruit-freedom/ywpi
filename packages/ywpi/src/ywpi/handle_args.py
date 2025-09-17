@@ -27,7 +27,7 @@ SERIALIZERS: dict[t.Any, t.Callable] = {
 }
 
 
-def cvt_image(value):
+def cvt_image(value, *args):
     ref = value['ref']
     tp = value['type']
     if tp != 'image':
@@ -45,13 +45,13 @@ def cvt_ref(value):
 #     return Stream(init_items=[data])
 
 DESERIALIZERS: dict[t.Any, t.Callable] = {
-    str: lambda v: v,
-    int: lambda v: int(v),
-    float: lambda v: float(v),
+    str: lambda v, _: v,
+    int: lambda v, _: int(v),
+    float: lambda v, _: float(v),
     ytypes.Image: cvt_image,
-    ytypes.Text: lambda v: str(v),
-    ytypes.Object: lambda v: ytypes.Object.model_validate(v),
-    ytypes.Context: lambda v: ytypes.Context.model_validate(v),
+    ytypes.Text: lambda v, _: str(v),
+    ytypes.Object: lambda v, _: ytypes.Object.model_validate(v),
+    ytypes.Context: lambda v, _: ytypes.Context.model_validate(v),
     # Stream: handle_stream
 }
 
@@ -189,11 +189,11 @@ def get_input_dict(fn) -> dict[str, InputTyping]:
     return inputs_dict
 
 
-def handle_arg(data: dict, tp: Type):
-    return DESERIALIZERS[tp.tp](data)
+def handle_arg(data: dict, tp: Type, attachments: t.MutableMapping[str, bytes]):
+    return DESERIALIZERS[tp.tp](data, attachments)
 
 
-def handle_args(data: dict, inputs: dict[str, InputTyping], ctx: dict = {}):
+def handle_args(data: dict, inputs: dict[str, InputTyping], attachments: t.MutableMapping[str, dict], ctx: dict = {}):
     """
     Description:
         Convert `data` in Referenced JSON format to Python dictionary using `schema`.
@@ -202,6 +202,8 @@ def handle_args(data: dict, inputs: dict[str, InputTyping], ctx: dict = {}):
             - File downloading (If ywpi reference used)
             - Stream creation
         Create streams if required.
+
+        Binary content parsing: { "$attachment": "<attachment key>" }
 
     Returns:
         Converted data.
@@ -217,14 +219,19 @@ def handle_args(data: dict, inputs: dict[str, InputTyping], ctx: dict = {}):
 
         source_tp = t.get_origin(input.source_tp) if t.get_origin(input.source_tp) is not None else input.source_tp
 
-        if issubclass(input.source_tp, pydantic.BaseModel):
-            value = input.source_tp.model_validate(raw_value)
+        if source_tp in DESERIALIZERS:
+            value = DESERIALIZERS[source_tp](raw_value, attachments)
+        elif issubclass(input.source_tp, pydantic.BaseModel):
+            context = { "attachments": attachments }
+            value = input.source_tp.model_validate(raw_value, context=context)
         elif input.source_tp is list:
             if type(raw_value) is not list:
                 raise TypeError('input type is not list')
-            value = [handle_arg(rv, input.args[0]) for rv in raw_value]
+            value = [handle_arg(rv, input.args[0], attachments) for rv in raw_value]
+        elif input.source_tp is bytes:
+            value = attachments[data[name]["$attachment"]]
         else:
-            value = DESERIALIZERS[source_tp](raw_value)
+            raise RuntimeError(f'no handle for type {input.source_tp}')
 
         if input.source_tp is not input.target_tp:
             value = TYPE_CONVERTERS[(input.source_tp, input.target_tp)](value)

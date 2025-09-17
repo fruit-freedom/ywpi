@@ -143,7 +143,7 @@ class SimpleMethodExecuter:
                 ],
                 description=registered_method.description,
                 labels=list(map(lambda e: hub_models.Label(name=e), registered_method.labels)) if registered_method.labels else None,
-                schema=get_function_schema(registered_method.fn),
+                openai_schema=get_function_schema(registered_method.fn),
             ))
             self.calls[name] = registered_method.fn
             self.method_input_dicts[name] = registered_method.inputs
@@ -191,15 +191,22 @@ class SimpleMethodExecuter:
             else:
                 logger.warning(f'Task "{task_id}" does not has io manager and could not be updated')
 
-    def call_method(self, exchanger: 'Exchanger', task_id: str, method: str, inputs: dict[str, typing.Any]):
+    def call_method(
+        self,
+        exchanger: 'Exchanger',
+        task_id: str,
+        method: str,
+        inputs: dict[str, typing.Any],
+        attachments: typing.MutableMapping[str, dict]
+    ):
         # exchanger.call_update_task(hub_models.UpdateTaskRequest(id=task_id, status='started'))
         io_manager = IOManager(task_id, self.method_input_dicts[method], exchanger)
 
         # TODO: Move `handle_inputs` call to `_method_wrapper`
         # WHY: `handle_inputs` sometimes could perform long running job during convertation like file downloading
-        params = io_manager.handle_inputs(inputs)
+        params = io_manager.handle_inputs(inputs, attachments)
 
-        self.thread_pool.submit(
+        return self.thread_pool.submit(
             SimpleMethodExecuter._method_wrapper,
             io_manager,
             self,
@@ -253,7 +260,7 @@ class Exchanger:
 
     def _rpc_start_task(self, payload: hub_models.StartTaskRequest) -> hub_models.StartTaskResponse:
         status = 'started'
-        self.service.call_method(self, payload.id, payload.method, payload.params)
+        self.service.call_method(self, payload.id, payload.method, payload.params, payload.attachments)
         return hub_models.StartTaskResponse(status=status)
 
     def _rpc_update_task(self, payload: hub_models.UpdateTaskRequest) -> hub_models.UpdateTaskResponse:
@@ -268,12 +275,12 @@ class Exchanger:
 
         self.service.update_task_inputs(payload.id, payload.inputs)
 
-    def _handle_request(self, reply_to: str, request: hub_pb2.RequestMessage):
+    def _handle_request(self, reply_to: str, request: hub_pb2.RequestMessage, attachments: typing.MutableMapping[str, bytes]):
         try:
             if request.rpc == hub_pb2.Rpc.RPC_START_TASK:
-                response = self._rpc_start_task(
-                    hub_models.StartTaskRequest.model_validate_json(request.payload)
-                )
+                model_request = hub_models.StartTaskRequest.model_validate_json(request.payload)
+                model_request.attachments = attachments
+                response = self._rpc_start_task(model_request)
                 self._write_response_message(
                     reply_to,
                     response.model_dump_json(),
@@ -305,7 +312,7 @@ class Exchanger:
                         logger.warning(f'[RPC] Recieved unexpected response MID: "{message.reply_to}"')
                 elif isinstance(attr, hub_pb2.RequestMessage):
                     logger.debug(f'[RPC] Recieve rpc "{hub_pb2.Rpc.Name(attr.rpc)}" for "{message.reply_to}" payload: "{attr.payload}"')
-                    self._handle_request(message.reply_to, attr)
+                    self._handle_request(message.reply_to, attr, message.attachments)
                 else:
                     logger.warning(f'Recieved unexpected message type {type(attr)}')
         except BaseException as e:
@@ -333,6 +340,13 @@ class Exchanger:
         return self.call(hub_pb2.Rpc.RPC_UPDATE_TASK, payload.model_dump_json())
 
 
+
+grpc_channel_options = [
+    ('grpc.max_send_message_length', settings.YWPI_GRPC_MAX_MESSAGE_SIZE),
+    ('grpc.max_receive_message_length', settings.YWPI_GRPC_MAX_MESSAGE_SIZE)
+]
+
+
 def serve(
     id: str,
     name: str = 'Untitled',
@@ -340,7 +354,7 @@ def serve(
     project: str = settings.YWPI_PROJECT_NAME,
 ):
     service = SimpleMethodExecuter(REGISTERED_METHODS)
-    with grpc.insecure_channel(settings.YWPI_HUB_HOST) as grpc_channel:
+    with grpc.insecure_channel(settings.YWPI_HUB_HOST, options=grpc_channel_options) as grpc_channel:
         greeter_stub = hub_pb2_grpc.HubStub(grpc_channel)
         output_channel = Channel()
         response_iterator = greeter_stub.Connect(iter(output_channel))
@@ -376,7 +390,7 @@ def _serve(
     project: str = settings.YWPI_PROJECT_NAME,
 ):
     service = SimpleMethodExecuter(REGISTERED_METHODS)
-    with grpc.insecure_channel(settings.YWPI_HUB_HOST) as grpc_channel:
+    with grpc.insecure_channel(settings.YWPI_HUB_HOST, options=grpc_channel_options) as grpc_channel:
         greeter_stub = hub_pb2_grpc.HubStub(grpc_channel)
         output_channel = Channel()
         response_iterator = greeter_stub.Connect(iter(output_channel))
@@ -427,7 +441,7 @@ def loop_serve(*args, **kwargs):
 
 def track(fn):
     def decorated(*args, **kwargs):
-        with grpc.insecure_channel(settings.YWPI_HUB_HOST) as grpc_channel:
+        with grpc.insecure_channel(settings.YWPI_HUB_HOST, options=grpc_channel_options) as grpc_channel:
             greeter_stub = hub_pb2_grpc.HubStub(grpc_channel)
             output_channel = Channel()
             response_iterator = greeter_stub.Connect(iter(output_channel))

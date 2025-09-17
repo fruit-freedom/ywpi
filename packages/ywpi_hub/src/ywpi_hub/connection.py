@@ -3,12 +3,15 @@ import uuid
 import typing as t
 import traceback
 from contextlib import asynccontextmanager
+from collections import defaultdict
 
 import aiochannel
 
 from ywpi_hub.logger import logger
-from ywpi_hub import hub_pb2
-from ywpi_hub import hub_models
+from ywpi_hub import hub_pb2, hub_models
+from ywpi_hub.tasks_respository import TaskRepository
+from ywpi_hub.agents_repository import AgentRepository
+
 
 class Connection:
     def __init__(
@@ -39,14 +42,15 @@ class Connection:
         self._handle_request_cb = handle_request_cb
         return self
 
-    async def _write_request_message(self, rpc: hub_pb2.Rpc, payload: str, reply_to: str):
+    async def _write_request_message(self, rpc: hub_pb2.Rpc, payload: str, reply_to: str, attachments: t.MutableMapping[str, bytes] = {}):
         self.output_channel.put_nowait(
             hub_pb2.Message(
                 reply_to=reply_to,
                 request=hub_pb2.RequestMessage(
                     rpc=rpc,
                     payload=payload
-                )
+                ),
+                attachments=attachments
             )
         )
         logger.debug(f'Write request message "{reply_to}"')
@@ -102,12 +106,12 @@ class Connection:
             else:
                 logger.warning(f'Recieved unexpected message type {type(attr)}')
 
-    async def call(self, rpc: hub_pb2.Rpc, payload: str) -> hub_pb2.ResponseMessage:
+    async def call(self, rpc: hub_pb2.Rpc, payload: str, attachments: t.MutableMapping[str, bytes] = {}) -> hub_pb2.ResponseMessage:
         reply_to = str(uuid.uuid4())
         future = asyncio.Future()
         self._outgoings_requests[reply_to] = future
         logger.debug(f'Call rpc "{hub_pb2.Rpc.Name(rpc)}"')
-        await self._write_request_message(rpc, payload, reply_to)
+        await self._write_request_message(rpc, payload, reply_to, attachments)
         try:
             return await asyncio.wait_for(future, timeout=10.0)
         finally:
@@ -116,10 +120,6 @@ class Connection:
 
     async def close(self):
         self._reader_task.cancel()
-
-
-from ywpi_hub.tasks_respository import TaskRepository
-from ywpi_hub.agents_repository import AgentRepository
 
 
 class AgentCommunicator:
@@ -195,7 +195,10 @@ class AgentCommunicator:
         if self._agent_description is None:
             raise RuntimeError('Agent not registered')
 
-        response = await self._connection.call(hub_pb2.Rpc.RPC_START_TASK, payload.model_dump_json())
+        attachments = payload.attachments
+        payload.attachments = {}
+
+        response = await self._connection.call(hub_pb2.Rpc.RPC_START_TASK, payload.model_dump_json(), attachments)
         if response.HasField('error'):
             raise Exception(response.error)
 
@@ -209,6 +212,7 @@ class AgentCommunicator:
 from ywpi_hub import hub_pb2_grpc
 import grpc
 from ywpi_hub.events.repository import repository 
+import pydantic
 
 
 class Hub(hub_pb2_grpc.HubServicer):
@@ -244,13 +248,27 @@ class Hub(hub_pb2_grpc.HubServicer):
             logger.info("Disconected agent")
 
     async def execute_method(self, agent_id: str, method_name: str, inputs: dict):
+        """
+        Automatically move first level bytes inputs to attachments
+        """
         agent = self.agents_repository.get(agent_id)
-        created_task, future = await self.tasks_respository.add_with_tracking(agent_id, method_name, inputs)
 
+        referenced_inputs = {}
+        attachments = {}
+        context = { "attachments": attachments }
+        for input_name, input_value in inputs.items():
+            if isinstance(input_value, pydantic.BaseModel):
+                serialized_input_value = input_value.model_dump(mode='json', context=context)
+                referenced_inputs[input_name] = serialized_input_value
+            else:
+                referenced_inputs[input_name] = input_value
+
+        created_task, future = await self.tasks_respository.add_with_tracking(agent_id, method_name, referenced_inputs)
         response = await agent.connector.start_task(hub_models.StartTaskRequest(
             id=created_task.id,
             method=method_name,
-            params=inputs
+            params=referenced_inputs,
+            attachments=attachments
         ))
 
         task = await future
@@ -293,18 +311,15 @@ class Hub(hub_pb2_grpc.HubServicer):
             await repository.close()
 
 
-# Application code require
-#   - Read only access to agents repository + subscribtion + calling
-#   - Read only access to tasks repository + subscribtion
-
-
 @asynccontextmanager
 async def _default_lifespan():
     yield
 
-from collections import defaultdict
 
 class HubApp(Hub):
+    # Application code require
+    #   - Read only access to agents repository + subscribtion + calling
+    #   - Read only access to tasks repository + subscribtion
     def __init__(self, lifespan: t.AsyncContextManager | None = None):
         super().__init__()
         self._lifespan = lifespan if lifespan is not None else _default_lifespan
@@ -314,7 +329,6 @@ class HubApp(Hub):
         ] = defaultdict(lambda: [])
 
     async def run(self):
-        # await self.on_startup()
         async with _default_lifespan():
             await super().run()
 
@@ -349,36 +363,3 @@ class HubApp(Hub):
                     await func(event)
                 except:
                     traceback.print_exc()
-
-
-# app = HubApp()
-
-
-# @app.on_agent_connected
-# async def fn(data: dict):
-#     print("Agent connected", data)
-
-
-# @app.on_agent_disconnected
-# async def fn(data: dict):
-#     print("Agent disconnected", data)
-#     app.execute_method()
-
-
-
-async def main():
-    await app.run()
-    # async with app.start():
-    #     pass
-        # a = hub.agents_repository.get("")
-
-
-def runserver():
-    try:
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        pass
-
-
-if __name__ == '__main__':
-    runserver()

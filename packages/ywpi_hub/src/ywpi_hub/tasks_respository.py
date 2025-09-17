@@ -84,7 +84,10 @@ class TaskRepository:
             if id in self._tracked_tasks:
                 fut = self._tracked_tasks.pop(id)
                 if not fut.cancelled():
-                    fut.set_result(task)
+                    if status != "failed":
+                        fut.set_result(task)
+                    else:
+                        fut.set_exception(RuntimeError("error during method execution"))
         else:
             self._tasks[id].status = status
             task = self._tasks[id]

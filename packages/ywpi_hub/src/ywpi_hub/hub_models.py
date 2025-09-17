@@ -35,7 +35,7 @@ class Method(pydantic.BaseModel):
     description: t.Optional[str] = None
     labels: t.Optional[list[Label]] = None
     subscribtions: t.Optional[list[Subscribtion]] = None
-    schema: t.Optional[dict] = None # OpenAI compatible function schema
+    openai_schema: t.Optional[dict] = None # OpenAI compatible function schema
 
 
 class RegisterAgentRequest(pydantic.BaseModel):
@@ -54,6 +54,7 @@ class StartTaskRequest(pydantic.BaseModel):
     id: str
     method: str
     params: dict[str, t.Any] = { }
+    attachments: t.MutableMapping[str, bytes] = { } # Type from protobuf
 
 
 class StartTaskResponse(pydantic.BaseModel):

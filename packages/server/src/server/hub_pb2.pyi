@@ -38,14 +38,23 @@ class ResponseMessage(_message.Message):
     def __init__(self, payload: _Optional[str] = ..., error: _Optional[str] = ...) -> None: ...
 
 class Message(_message.Message):
-    __slots__ = ("reply_to", "request", "response")
+    __slots__ = ("reply_to", "request", "response", "attachments")
+    class AttachmentsEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: bytes
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[bytes] = ...) -> None: ...
     REPLY_TO_FIELD_NUMBER: _ClassVar[int]
     REQUEST_FIELD_NUMBER: _ClassVar[int]
     RESPONSE_FIELD_NUMBER: _ClassVar[int]
+    ATTACHMENTS_FIELD_NUMBER: _ClassVar[int]
     reply_to: str
     request: RequestMessage
     response: ResponseMessage
-    def __init__(self, reply_to: _Optional[str] = ..., request: _Optional[_Union[RequestMessage, _Mapping]] = ..., response: _Optional[_Union[ResponseMessage, _Mapping]] = ...) -> None: ...
+    attachments: _containers.ScalarMap[str, bytes]
+    def __init__(self, reply_to: _Optional[str] = ..., request: _Optional[_Union[RequestMessage, _Mapping]] = ..., response: _Optional[_Union[ResponseMessage, _Mapping]] = ..., attachments: _Optional[_Mapping[str, bytes]] = ...) -> None: ...
 
 class PushTaskRequest(_message.Message):
     __slots__ = ("agent_id", "method", "params", "payload")

@@ -51,7 +51,7 @@ def deserial(fn):
 
     # TODO: Handle input data type
     params = list(inspect.signature(fn).parameters.values())
-    assert len(params) == 1
+    assert len(params) == 2
     data_tp = params[0].annotation
     assert not issubclass(inspect.Parameter.empty, data_tp)
     assert data_tp in (str, int, float, dict, list)
@@ -97,5 +97,41 @@ def handle_outputs(data: t.Any) -> dict[str, t.Any]:
 #     return value
 
 
+def validate_bytes_with_attachments_ctx(data, info: pydantic.ValidationInfo) -> bytes:
+    if isinstance(data, dict):
+        try:
+            attachments = info.context["attachments"]
+        except:
+            raise ValueError(f'attachments does not present in the context')
+
+        try:
+            key = data["$attachment"]
+        except:
+            raise ValueError('data does not has "$attachment" attribute')
+
+        try:
+            return attachments[key]
+        except:
+            raise ValueError(f'attachment with key "{key}" does not present in the context')
+
+    return data
 
 
+BytesValidator = pydantic.BeforeValidator(validate_bytes_with_attachments_ctx)
+"""
+Serializer require context with *attachments* dictionary.
+"""
+
+
+def serialize_bytes_with_attachments_ctx(data: bytes, info: pydantic.SerializationInfo):
+    info.context["attachments"]["1"] = data
+    return {
+        "$attachment": "1"
+    }
+
+
+BytesSerializer = pydantic.PlainSerializer(serialize_bytes_with_attachments_ctx)
+"""
+Serializer require context with *attachments* dictionary.
+Serializer replace binary content with reference and insert data into *attachments* dictionary,
+"""

@@ -54,3 +54,47 @@ Referenced JSON
     }
 }
 ```
+
+
+
+#### Multiple level of serialization
+1. *Application* - regular python dictionary with python objects
+2. *Hub* - serialize dictionary in `StartTaskRequest` model
+    - Referencify `bytes` values with *attachments*
+3. *gRPC* - serialize `StartTaskRequest` to string via `JSON` string + `attachments` map
+
+
+
+
+### Serialization for model with bytes fields
+Ywpi pass additional context to pydantic `model_validate` method.
+Context has next format:
+```python
+{
+    "attachments": {
+        "attachment_key": b"binary content"
+    }
+}
+```
+
+
+```python
+class Model(pydantic.BaseModel):
+    class File(pydantic.BaseModel):
+        content: bytes 
+
+        @pydantic.field_validator('content', mode='before')
+        def validate(data, info: pydantic.ValidationInfo) -> bytes:
+            print("Validate", data, "\n")
+            if isinstance(data, dict):
+                key = data["$attachment"]
+                if key in info.context["attachments"]:
+                    return info.context["attachments"][key]
+                else:
+                    raise ValueError(f'conten with key "{key}" does not present in the attachments')
+            return data
+
+    files: list['Model.File'] = []
+```
+
+

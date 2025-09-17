@@ -71,8 +71,8 @@ class IOManager:
             hub_models.UpdateTaskRequest(id=self._task_id, outputs=serialization.handle_outputs(outputs))
         )
 
-    def handle_inputs(self, inputs: dict[str, t.Any]) -> dict[str, t.Any]:
-        params = params_from_dict(inputs, self._io_schema)
+    def handle_inputs(self, inputs: dict[str, t.Any], attachments: t.MutableMapping[str, dict]) -> dict[str, t.Any]:
+        params = params_from_dict(inputs, self._io_schema, attachments)
 
         streams: dict[str, Stream] = {}
 

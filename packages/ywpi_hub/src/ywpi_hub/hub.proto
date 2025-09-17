@@ -55,6 +55,7 @@ message Message {
         RequestMessage request = 2;
         ResponseMessage response = 3;
     }
+    map<string, bytes> attachments = 4;
 }
 
 // ---- ---- ---- ---- Hub internal communication API ---- ---- ---- ---- //
@@ -64,6 +65,7 @@ message PushTaskRequest {
     string method = 2;
     string params = 3;
     string payload = 4;
+    // map<string, bytes> attachments = 5;
 }
 
 message PushTaskResponse {

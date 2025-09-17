@@ -26,7 +26,7 @@ class PDF(pydantic.BaseModel):
     src: str
 
     @staticmethod
-    def from_data(data: dict) -> 'PDF':
+    def from_data(data: dict, *args) -> 'PDF':
         return PDF.model_validate(data)
 
     def _download_file(self) -> bytes:

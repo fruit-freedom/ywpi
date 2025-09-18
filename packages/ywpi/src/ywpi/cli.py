@@ -20,6 +20,7 @@ run_parser.add_argument('--id', type=str, help='Agent id', default='ywpi-run')
 run_parser.add_argument('--name', type=str, help='Agent name', default='Untitled')
 run_parser.add_argument('--project', type=str, help='Project ID')
 run_parser.add_argument('--reload', action='store_true', help='Enable auto reloading', default=False)
+run_parser.add_argument('--auto-reconnect', action='store_true', help='Enable auto reconnection to hub', default=False)
 
 command_subparsers.add_parser('methods')
 
@@ -47,7 +48,10 @@ def perform_run_command(args):
     kwargs = {}
     if args.project is not None: kwargs['project'] = args.project
 
-    ywpi.serve(args.id, args.name, **kwargs)
+    if not args.auto_reconnect:
+        ywpi.serve(args.id, args.name, **kwargs)
+    else:
+        ywpi.serve_with_reconnecting(args.id, args.name, **kwargs)
 
 
 def perform_sync(args):

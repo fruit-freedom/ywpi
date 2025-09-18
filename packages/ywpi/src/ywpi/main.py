@@ -383,51 +383,17 @@ def serve(
             output_channel.close()
 
 
-def _serve(
-    id: str,
-    name: str = 'Untitled',
-    description: str = 'No description provided',
-    project: str = settings.YWPI_PROJECT_NAME,
-):
-    service = SimpleMethodExecuter(REGISTERED_METHODS)
-    with grpc.insecure_channel(settings.YWPI_HUB_HOST, options=grpc_channel_options) as grpc_channel:
-        greeter_stub = hub_pb2_grpc.HubStub(grpc_channel)
-        output_channel = Channel()
-        response_iterator = greeter_stub.Connect(iter(output_channel))
-
-        hello_message = hub_models.RegisterAgentRequest(
-            id=id,
-            name=name,
-            project=project,
-            description=description,
-            methods=service.methods,
-        )
-
-        try:
-            exchanger = Exchanger(response_iterator, output_channel, service)
-            result = exchanger.call_register_agent(hello_message)
-            good = result.result()
-            if good.HasField('error'):
-                logger.error(f'Agent register failed: {good.error}')
-                raise Exception()
-
-            logger.info(f'Connected to hub {settings.YWPI_HUB_HOST}')
-            exchanger.finish.result()
-        finally:
-            output_channel.close()
-
-
-def loop_serve(*args, **kwargs):
+def serve_with_reconnecting(*args, **kwargs):
     import time
     sleep_time = 1
     running_time = 0
     while True:
         try:
             start = time.time()
-            _serve(*args, **kwargs)
+            serve(*args, **kwargs)
         except KeyboardInterrupt:
             return
-        except Exception as e:
+        except BaseException as e:
             running_time = time.time() - start
 
         if running_time > 10:

@@ -1,0 +1,23 @@
+.md-context-content-editable {
+    outline: none;
+    font-family: "Roboto", "Helvetica", "Arial", sans-serif;
+}
+
+.editor-paragraph {
+    background-color: #fafafa;
+    /* background-color: lightgrey; */
+    border-radius: 4px;
+    padding: 4px;
+    margin: 8px 0;
+}
+
+.editor-code {
+    /* background-color: #fafafa; */
+    /* background-color: lightgrey; */
+    border: 1px solid #fafafa;
+    border-radius: 4px;
+    padding: 4px;
+    margin: 8px;
+    display: block;
+    font-family: "Roboto", "Helvetica", "Arial", sans-serif;
+}

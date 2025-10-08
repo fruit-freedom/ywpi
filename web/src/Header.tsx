@@ -1,7 +1,10 @@
 import { AppBar, MenuItem, Toolbar, Typography, Box } from "@mui/material"
 import Link from "./components/Link";
+import { useLocation } from "react-router-dom";
 
 export default () => {
+    const location = useLocation();
+
     return (
         <AppBar position="static" sx={{ backgroundColor: '#fff', height: '65px', mb: '8px' }}>
             <Toolbar>
@@ -20,12 +23,23 @@ export default () => {
                     </Link>
                     <Typography textAlign={'center'} variant="body2" color='grey' fontSize={8}>Yes, we provide inference</Typography>
                 </Box>
-                <MenuItem>
+                <MenuItem
+                    sx={{ backgroundColor: location.pathname.startsWith("/projects") ? "lightgrey": "none" }}
+                >
                     <Link to={'/projects'}>
-                        <Typography variant="h6" color='black' fontWeight={600} textTransform={'uppercase'}>Projects</Typography>
+                        <Typography
+                            variant="h6"
+                            color='black'
+                            fontWeight={600}
+                            textTransform={'uppercase'}
+                        >
+                            Projects
+                        </Typography>
                     </Link>
                 </MenuItem>
-                <MenuItem>
+                <MenuItem
+                    sx={{ backgroundColor: location.pathname.startsWith("/agents") ? "lightgrey": "none" }}
+                >
                     <Link to={'/agents'}>
                         <Typography variant="h6" color='black' fontWeight={600} textTransform={'uppercase'}>Agents</Typography>
                     </Link>

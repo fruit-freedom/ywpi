@@ -6,10 +6,10 @@ import {createHtmlPlugin} from "vite-plugin-html";
 export default defineConfig({
     plugins: [
         react(),
-        createHtmlPlugin({
-            entry: '/src/index.tsx',
-            template: '/public/index.html'
-        })
+        // createHtmlPlugin({
+        //     entry: '/src/index.tsx',
+        //     template: '/public/index.html'
+        // })
     ],
     server: {
         host: true,
@@ -20,9 +20,16 @@ export default defineConfig({
                 changeOrigin: true,
                 secure: false
             },
+            '/api/ws': {
+                target: 'ws://localhost:5011',
+                changeOrigin: true,
+                secure: false,
+                ws: true,
+                rewriteWsOrigin: true
+            },
         },
     },
     resolve: {
-        extensions: ['.tsx', '.ts', '.js', '.jsx', '.scss', '.mjs'],
+        // extensions: ['.tsx', '.ts', '.js', '.jsx', '.scss', '.mjs'],
     }
 })

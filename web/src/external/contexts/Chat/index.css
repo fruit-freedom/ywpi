@@ -1,0 +1,9 @@
+.message-editor {
+    outline: none;
+    font-family: "Roboto", "Helvetica", "Arial", sans-serif;
+}
+
+.cm-scroller {
+    min-width: 500px;
+    outline: none;
+}

@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from "react-query";
 import { useParams } from "react-router-dom"
 import { Context } from "../../api/types";
-import { Box, Paper, Stack, Typography } from "@mui/material";
+import { Box, Paper, Stack, Switch, Tooltip, Typography } from "@mui/material";
 import { Agent, Method, useAgents } from "../../store/store";
 import { AgentStatus, useEvents } from "../../hooks/useEvents";
 import { useMemo, useState } from "react";
@@ -10,6 +10,12 @@ import { Button } from "../../components/Button";
 import { useForm } from "react-hook-form";
 import { executeMethodAsync } from "../../api";
 import contexts from "../../external/contexts";
+
+// import { Chat } from "../../external/contexts/Chat";
+import { MarkdownContext } from "../../external/contexts/Markdown";
+import { ContextProps } from "./types";
+import { Markdown } from "../../components/Markdown";
+
 
 const AgentMethodsList = ({ agent, onClick }: { agent: Agent, onClick?: (m: Method, a: Agent) => void; }) => {
     return (
@@ -31,6 +37,33 @@ const AgentMethodsList = ({ agent, onClick }: { agent: Agent, onClick?: (m: Meth
     )
 }
 
+const applyUpdate = (contextId: string, update: any, shadow_update = false) => {
+    return fetch(`/api/projects/_/contexts/${contextId}/apply`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            update,
+            shadow_update
+        })
+    })
+}
+
+const setSubscribtions = (contextId: string, subscribtions: any) => {
+    return fetch(`/api/projects/_/contexts/${contextId}/apply`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            subscribtions
+        })
+    })
+}
+
+const mockAgentTooltip = `
+This agent listening for **@issue** tag and
+recommend to create issues in actions panel.
+`
+
+
 export const ContextPage = () => {
     const { projectId, contextId } = useParams();
 
@@ -41,20 +74,16 @@ export const ContextPage = () => {
         queryKey: ['projects', projectId, 'contexts', contextId]
     });
 
-    const [activeAgentMethod, setActiveAgentMethod] = useState<{ agent: Agent, method: Method }>();
-
     const { agents } = useAgents();
     const { } = useEvents({
         onEvent: (event) => {
             const outputs = event.data.outputs;
             if (outputs !== undefined) {
-                const update = outputs['$context_update'];
-                if (update !== undefined) {
-                    const contextId = update['$id'];
+                if (outputs.type == "ContextUpdate") {
+                    const contextId = outputs.data.context_id;
 
                     /// TODO: Use event apply
                     if (contextId === contextId) {
-                        console.log('Update', update)
                         queryClient.invalidateQueries(['projects', projectId, 'contexts', contextId]);
                     }
                 }
@@ -62,31 +91,11 @@ export const ContextPage = () => {
         }
     });
 
-    const { register, handleSubmit, setValue, control } = useForm({  });
-
-    const onValidSubmit = (data: any) => {
-        if (activeAgentMethod) {
-            const contextParams = activeAgentMethod.method.inputs
-                .filter(e => e.type.name === 'context')
-                .reduce((prev, cur) => {
-                    prev[cur.name] = {
-                        id: context?.id,
-                        tp: context?.tp
-                    }
-                    return prev;
-                }, {});
-
-            executeMethodAsync(
-                activeAgentMethod.agent.id,
-                activeAgentMethod.method.name,
-                { ...data, ...contextParams }
-            );
-        }
-    }
-
     const agentMethods = useMemo(() => {
         const pairs: { agent: Agent, method: Method }[] = [];
-        agents.filter(a => a.status === AgentStatus.Connected).forEach(a => {
+        agents
+        // .filter(a => a.status === AgentStatus.Connected)
+        .forEach(a => {
             a.methods.forEach(m => {
                 pairs.push({
                     agent: a,
@@ -94,38 +103,78 @@ export const ContextPage = () => {
                 })
             })
         });
-
-        return pairs.filter(p => p.method.inputs.find(i => i.type.name === 'context'));
+        return pairs.filter(p => p.method.inputs.find(i => i.type.name === 'Context'));
     }, [agents]);
+
+    const contextProps = {
+        data: context?.data,
+        contextId: context?.id,
+        applyContextUpdate: (update) => {
+            applyUpdate(context?.id, update)
+            .then(e => queryClient.invalidateQueries(['projects', projectId, 'contexts', context?.id]))
+        },
+        forceContextRefetch: () => queryClient.invalidateQueries(['projects', projectId, 'contexts', context?.id]),
+    } as ContextProps;
 
     return (
         <Stack direction={'row'} gap={'1rem'} padding={'1rem'}>
-            <Stack width={'20%'} gap={'0.2rem'}>
-                {/* {
-                    agents.map(e => <AgentMethodsList key={e.id} agent={e} onClick={(m, a) => setActiveAgentMethod([a, m])}/>)
-                } */}
+            <Stack width={'15%'} gap={'0.2rem'}>
+                <Typography fontWeight={700}>Subscribtions</Typography>
                 {
                     agentMethods.map(e => (
-                        <Paper elevation={4} key={e.agent.id + e.method.name}>
-                            <Box
-                                padding={'0.5rem'}
-                                sx={{ cursor: 'pointer', '&:hover': { backgroundColor: 'lightgray' } }}
-                                bgcolor={
-                                    e.agent.id === activeAgentMethod?.agent.id &&
-                                    e.method.name === activeAgentMethod?.method.name
-                                    ? 'lightgray' : '#fff'
-                                }
-                                onClick={() => setActiveAgentMethod(e)}
-                            >
-                                <Typography>{e.agent.id} / {e.method.name}</Typography>
-                            </Box>
-                        </Paper>
+                        <Tooltip
+                            key={e.agent.id + e.method.name}
+                            title={
+                            <Markdown>{mockAgentTooltip}</Markdown>
+                            }
+                        >
+                            <Paper elevation={4} key={e.agent.id + e.method.name}>
+                                <Stack
+                                    direction={"row"}
+                                    justifyContent={"space-between"}
+                                    padding={'0.5rem'}
+                                >
+                                    <Typography>{e.agent.id} / {e.method.name}</Typography>
+                                    <Switch
+                                        size="small"
+                                        onChange={
+                                            (_, n) => setSubscribtions(
+                                                contextId,
+                                                n
+                                                ?
+                                                [...context?.subscribtions, { agent_id: e.agent.id, method_name: e.method.name }]
+                                                :
+                                                context?.subscribtions.filter(s => !(s.agent_id === e.agent.id && s.method_name === e.method.name))
+                                            )
+                                            .then(e => queryClient.invalidateQueries(['projects', projectId, 'contexts', contextId]))
+                                        }
+                                        checked={
+                                            Boolean(
+                                                context?.subscribtions.find(s => s.agent_id === e.agent.id && s.method_name === e.method.name)
+                                            )
+                                        }
+                                    />
+                                </Stack>
+                            </Paper>
+                        </Tooltip>
                     ))
                 }
             </Stack>
             <Stack flexGrow={1} gap={'2rem'}>
-                <Stack border={'1px solid lightgrey'}>
+                <Stack border={'1px solid lightgrey'} borderRadius={'4px'} maxHeight={'825px'} overflow={'auto'}>
                     {
+                        context ?
+                        <>
+                            {/* {
+                                context.tp === "chat" ? <Chat {...contextProps}/> : null
+                            } */}
+                            {
+                                context.tp === "markdown" ? <MarkdownContext {...contextProps}/> : null
+                            }
+                        </>
+                        : null
+                    }
+                    {/* {
                         context ?
                         (
                             contexts.has(context.tp) ?
@@ -138,36 +187,7 @@ export const ContextPage = () => {
                             </pre>
                         )
                         : null
-                    }
-                </Stack>
-                <Stack>
-                    {
-                        activeAgentMethod ?
-                            <Box>
-                                <form onSubmit={handleSubmit(onValidSubmit)}>
-                                    <Box display={'flex'} flexDirection={'column'} gap={3}>
-                                    {
-                                        activeAgentMethod.method.inputs.filter(e => e.type.name !== 'context').map(e => (
-                                            <Box key={e.name}>
-                                                <Box>
-                                                    <Box display={'flex'} alignItems={'center'}  gap={'0.5em'}>
-                                                        <Typography fontWeight={800} variant='subtitle1' >{e.name}:</Typography>
-                                                        {/* <Typography variant='subtitle1' fontStyle={'italic'}>{getTypeName(e.type)}</Typography> */}
-                                                        <Typography variant='body2' color='grey' padding={'0 0.5em'} maxWidth={'30em'}>
-                                                            {e.description}
-                                                        </Typography>
-                                                    </Box>
-                                                </Box>
-                                                {COMPONENTS.get(e.type.name)?.({ register, name: e.name, control, setValue })}
-                                            </Box>
-                                        ))
-                                    }
-                                    <Button type="submit">Start</Button>
-                                    </Box>
-                                </form>
-                            </Box>
-                        : null
-                    }
+                    } */}
                 </Stack>
             </Stack>
         </Stack>

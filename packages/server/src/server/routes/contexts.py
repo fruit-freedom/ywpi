@@ -1,33 +1,24 @@
 import typing as t
+import traceback
 
 import fastapi
 import pydantic
 from bson import ObjectId
 
 from ..db import contexts_collection
+from server.apply_update import apply_context_update
+from server.hub_service import hub
 
 
-PyObjectId = t.Annotated[str, pydantic.BeforeValidator(str)]
-T = t.TypeVar('T')
+from server.repositories.contexts import Context, Label, Subscribtion, set_subscribtions
 
 
-class Label(pydantic.BaseModel):
-    name: str
-    value: t.Optional[str] = None
+async def lifespan(app: fastapi.FastAPI):
+    async with hub.lifespan():
+        yield
 
 
-class Context(pydantic.BaseModel):
-    """
-    MongoDB Collection Item
-    """
-    id: PyObjectId = pydantic.Field(alias='_id', serialization_alias='id', default=None)
-    project_id: t.Optional[PyObjectId] = None
-    labels: t.Optional[list[Label]] = None
-    tp: str
-    data: dict
-
-
-router = fastapi.APIRouter()
+router = fastapi.APIRouter(lifespan=lifespan)
 
 
 @router.post('/api/projects/{project_id}/contexts', tags=['contexts'])
@@ -106,7 +97,7 @@ async def update_context(
     project_id: str,
     context_id: str,
     labels: t.Annotated[t.Optional[list[Label]], fastapi.Body()] = [],
-    placeholder: t.Annotated[t.Optional[str], fastapi.Body()] = None,
+    data: t.Annotated[t.Optional[dict], fastapi.Body()] = None,
 ):
     await contexts_collection.update_one({ '_id': ObjectId(context_id) }, {
         '$push': {
@@ -120,8 +111,60 @@ async def update_context(
     })
 
 
+@router.post('/api/projects/{project_id}/contexts/{context_id}/apply', tags=['contexts'])
+async def update_context(
+    project_id: str,
+    context_id: str,
+    update: t.Annotated[dict, fastapi.Body()] = None,
+    shadow_update: t.Annotated[t.Optional[bool], fastapi.Body()] = False,
+    subscribtions: t.Annotated[t.Optional[list[Subscribtion]], fastapi.Body()] = None,
+) -> Context | None:
+    """
+    Example update:
+    ```json
+    {
+        "$push": {
+            "messages": {
+                "role": "user",
+                "content": "Hello"
+            }
+        }
+    }
+    ```
+    """
+
+    updated_context = None
+    if subscribtions is not None:
+        updated_context = await set_subscribtions(context_id, subscribtions)
+
+    if update is not None:
+        updated_context = Context.model_validate(
+            await apply_context_update(context_id, update)
+        )
+
+        if not shadow_update:
+            for sub in updated_context.subscribtions:
+                try:
+                    # Arg should be ctx
+                    task_id = await hub.execute_method(
+                        sub.agent_id,
+                        sub.method_name,
+                        { "ctx": updated_context.model_dump(mode='json') }
+                    )
+                    print("Created task", task_id)
+                except:
+                    traceback.print_exc()
+
+
+    # Select context type
+    # If type == "Chat"
+    #   Select all methods filtering by subscribtions fields
+
+    return updated_context
+
+
 @router.delete('/api/projects/{project_id}/contexts/{context_id}', tags=['contexts'])
-async def update_context(project_id: str, context_id: str):
+async def delete_context(project_id: str, context_id: str):
     result = await contexts_collection.delete_one({ '_id': ObjectId(context_id) })
 
     if result.deleted_count <= 0:

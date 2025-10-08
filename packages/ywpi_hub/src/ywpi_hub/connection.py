@@ -92,19 +92,22 @@ class Connection:
 
     # @with_exception_logging
     async def _reader(self):
-        async for message in self._input_channel:
-            # Bug in aiochannel pkg: `def __aiter__(self) -> "Channel":` no type
-            attr = message.__getattribute__(message.WhichOneof('message'))
-            logger.debug(f'Read message "{message.reply_to}"')
+        try:
+            async for message in self._input_channel:
+                # Bug in aiochannel pkg: `def __aiter__(self) -> "Channel":` no type
+                attr = message.__getattribute__(message.WhichOneof('message'))
+                logger.debug(f'Read message "{message.reply_to}"')
 
-            if isinstance(attr, hub_pb2.ResponseMessage):
-                logger.debug(f'Recieve response for "{message.reply_to}"')
-                await self._handle_response(message.reply_to, attr)
-            elif isinstance(attr, hub_pb2.RequestMessage):
-                logger.info(f'Recieve rpc "{hub_pb2.Rpc.Name(attr.rpc)}"')
-                await self._handle_request(message.reply_to, attr)
-            else:
-                logger.warning(f'Recieved unexpected message type {type(attr)}')
+                if isinstance(attr, hub_pb2.ResponseMessage):
+                    logger.debug(f'Recieve response for "{message.reply_to}"')
+                    await self._handle_response(message.reply_to, attr)
+                elif isinstance(attr, hub_pb2.RequestMessage):
+                    logger.info(f'Recieve rpc "{hub_pb2.Rpc.Name(attr.rpc)}"')
+                    await self._handle_request(message.reply_to, attr)
+                else:
+                    logger.warning(f'Recieved unexpected message type {type(attr)}')
+        except:
+            traceback.print_exc()
 
     async def call(self, rpc: hub_pb2.Rpc, payload: str, attachments: t.MutableMapping[str, bytes] = {}) -> hub_pb2.ResponseMessage:
         reply_to = str(uuid.uuid4())

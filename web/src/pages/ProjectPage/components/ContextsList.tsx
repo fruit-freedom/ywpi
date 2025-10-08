@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { Context, Label } from "../../../api/types";
-import { Box, IconButton, Modal, Paper, Stack, Typography } from "@mui/material";
+import { Box, IconButton, MenuItem, Modal, Paper, Select, Stack, Typography } from "@mui/material";
 import { ObjectCard } from "./ObjectCard";
 import { Object } from "../../../api/object";
 import { Button } from "../../../components/Button";
@@ -43,8 +43,10 @@ const CreateContextForm = ({ open, onClose, projectId }: CreateContextFormProps)
         onError: () => onClose()
     });
 
+    const [type, setType] = useState("chat");
+
     const createContextAndClose = () => {
-        createContextMutation.mutate({ projectId, tp: 'chat' })
+        createContextMutation.mutate({ projectId, tp: type })
         // onClose();
     };
 
@@ -56,8 +58,18 @@ const CreateContextForm = ({ open, onClose, projectId }: CreateContextFormProps)
                 justifyContent={'center'}
                 height={'100vh'}
             >
-                <Stack bgcolor={'#fff'} borderRadius={'4px'} padding={'3rem'} gap={2}>
-                    <Typography variant="h5" textAlign={'center'} fontWeight={700}>Create chat</Typography>
+                <Stack bgcolor={'#fff'} borderRadius={'4px'} padding={'3rem'} gap={4}>
+                    <Typography variant="h5" textAlign={'center'} fontWeight={700}>Create context</Typography>
+                    <Select
+                        value={type}
+                        label="Type"
+                        onChange={(e) => setType(e.target.value)}
+                        variant="standard"
+                        size="small"
+                    >
+                        <MenuItem value={"chat"}>Chat</MenuItem>
+                        <MenuItem value={"markdown"}>Markdown</MenuItem>
+                    </Select>
                     {/* <TextField
                         size='small'
                         fullWidth
@@ -112,7 +124,7 @@ const updateContext = (options: { projectId: string, contextId: string, labels: 
     .then(e => e.json())
 }
 
-export const ContextsList = ({ projectId }: { projectId: string }) => {
+export const ContextsList = ({ projectId, projectName }: { projectId: string, projectName?: string }) => {
     const [query, setQuery] = useState<string>();
 
     const queryClient = useQueryClient();
@@ -148,8 +160,9 @@ export const ContextsList = ({ projectId }: { projectId: string }) => {
             }}
             /> */}
             {/* <FilterString onChange={e => setQuery(e)}/> */}
-            <Stack direction={'row'} justifyContent={'flex-end'}>
-                <Button onClick={() => setCreateModelOpen(true)}>Create</Button>
+            <Stack direction={'row'} justifyContent={"space-between"} padding={"0 4rem"}>
+                <Typography variant="h4" fontWeight={700}>{projectName}</Typography>
+                <Button onClick={() => setCreateModelOpen(true)}>+ Create context</Button>
             </Stack>
             <Stack gap={1} direction={'row'} flexWrap={'wrap'} justifyContent={'center'}>
                 {
@@ -178,13 +191,6 @@ export const ContextsList = ({ projectId }: { projectId: string }) => {
                                             <Link to={`/projects/${projectId}/contexts/${e.id}`} sx={{ color: 'grey', padding: '5px' }}>
                                                 <OpenInFullIcon fontSize="small"/>
                                             </Link>
-                                            {/* <IconButton
-                                                size="small"
-                                                sx={{ width: "min-content" }}
-                                                onClick={() => navigate(`/projects/${projectId}/contexts/${e.id}`)}
-                                            >
-                                                <OpenInFullIcon fontSize="small"/>
-                                            </IconButton> */}
                                         </Stack>
                                     }
                                 />

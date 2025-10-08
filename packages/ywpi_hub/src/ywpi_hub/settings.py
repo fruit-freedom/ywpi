@@ -1,6 +1,6 @@
 import os
 
-USE_RABBITMQ_EVENTS = bool(int(os.getenv('USE_RABBITMQ_EVENTS', 1)))
+USE_RABBITMQ_EVENTS = bool(int(os.getenv('USE_RABBITMQ_EVENTS', 0)))
 RQ_EXCHANGE_NAME        = 'ywpi.events'
 RQ_USER                 = os.getenv('RQ_USER', 'admin')
 RQ_PASSWORD             = os.getenv('RQ_PASSWORD', 'admin')

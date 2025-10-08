@@ -10,7 +10,7 @@ import fastapi
 from .db import objects_collection, execution_managers_collection
 from . import hub_pb2
 from . import hub_pb2_grpc
-
+from server.settings import HUB_CONNECTION_STRING
 
 PyObjectId = t.Annotated[str, pydantic.BeforeValidator(str)]
 
@@ -44,7 +44,7 @@ class ExecutionManager:
     async def _background_loop(self):
         try:
             sleep_time = 0.1
-            async with grpc.aio.insecure_channel('localhost:50051') as channel:
+            async with grpc.aio.insecure_channel(HUB_CONNECTION_STRING) as channel:
                 hub_stub = hub_pb2_grpc.HubStub(channel)
                 while True:
                     try:

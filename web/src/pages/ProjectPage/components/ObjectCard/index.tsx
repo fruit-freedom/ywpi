@@ -19,7 +19,7 @@ export const ObjectCard = ({ object, onLabelAddClick, additionalControls, onClic
             gap={1}
             justifyContent={'space-between'}
         >
-            <Box>
+            {/* <Box>
                 {
                     components.has(object.tp) ?
                     <>
@@ -31,7 +31,7 @@ export const ObjectCard = ({ object, onLabelAddClick, additionalControls, onClic
                     </pre>
                 }
                 <Divider />
-            </Box>
+            </Box> */}
             <>
                 <Stack direction={'row'} flexWrap={'wrap'} gap={0.5}>
                     {

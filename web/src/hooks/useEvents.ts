@@ -200,7 +200,8 @@ export const useEvents = (options?: UseEventsOptions) => {
         const connect = () => {
             setConnectionState(ConnectionStateEnum.connecting);
 
-            sockRef.current = new WebSocket(`ws://localhost:5011/api/ws`);
+            // sockRef.current = new WebSocket(`ws://localhost:5011/api/ws`);
+            sockRef.current = new WebSocket(`ws://${window.location.hostname}/api/ws`);
             sockRef.current.onclose = () => {
                 setConnectionState(ConnectionStateEnum.disconnected);
                 // setTimeout(() => connect(), 1000);

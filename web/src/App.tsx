@@ -5,7 +5,7 @@ import {
 } from "react-router-dom";
 import { pdfjs } from 'react-pdf';
 import AgentsPage from "./pages/AgentsPage/index.tsx";
-import { Box } from '@mui/material';
+import { Box, createTheme, ThemeProvider } from '@mui/material';
 import Header from './Header';
 import MethodPage from './MethodPage';
 import { RetrievePage } from './pages/RetrievePage/RetrievePage';
@@ -77,11 +77,35 @@ const router = createBrowserRouter([
 
 const queryClient = new QueryClient();
 
+const theme = createTheme({
+    palette: {
+        primary: {
+            main: "#171717"
+        },
+        secondary: {
+            main: "#f5f5f5"
+        }
+    },
+    components: {
+        MuiButton: {
+            defaultProps: {
+                style: {
+                    fontWeight: 700,
+                    // width: 'min-content'
+                },
+            },
+        },
+    },
+});
+
+
 
 function App() {
     return (
         <QueryClientProvider client={queryClient}>
-            <RouterProvider router={router} />
+            <ThemeProvider theme={theme}>
+                <RouterProvider router={router} />
+            </ThemeProvider>
         </QueryClientProvider>
     );
 }

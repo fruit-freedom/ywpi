@@ -26,36 +26,16 @@ import { useEffect, useState } from "react";
 
 
 import mock from "./mock";
-import Annotator from "./annotator";
 
 
 interface Note {
-    // The generated unique identifier
     id: number;
-
-    // The list of highlight areas
-    // highlightAreas: HighlightArea[];
-
-    // The note content
     name: string;
-
-    // The content context
-    // contexts: string[];
-
     places: {
         highlightAreas: HighlightArea[]; // Term place
         context: string;
     }[];
-
-    // contexts: {
-    //     content: string;
-    //     highlightAreas: HighlightArea[];
-    // }[];
-
-    // The note class (term, person, organization)    
     kind: string;
-
-    // Note higlight color
     color: string;
 }
 
@@ -128,145 +108,61 @@ const kindToColor = (kind: string): string => {
     return 'black';
 }
 
-interface DocumentText {
-    page_number: number;
-    text: string;
-    x1: number;
-    y1: number;
-    x2: number;
-    y2: number;
-}
-
-interface SearchDocument extends DocumentText {
-    object_id: string;
-}
-
-interface SearchReponse {
-    data: SearchDocument[];
-}
-
 const PDFAnnotator = ({ url }: { url: string }) => {
     const [notes, setNotes] = useState<Note[]>(mock);
     let noteId = notes.length;
 
     const [pageSize, setPageSize] = useState<{ width: number; height: number }>();
 
-    useEffect(() => {
-        if (pageSize) {
-            // fetch('http://localhost:9090')
-            // .then(e => e.json())
-            // .then((data: DocumentText[]) => {
-            //     const newNotes = data.map((e, idx) => {
-            //         return {
-            //             id: idx,
-            //             name: 'Test',
-            //             places: [{
-            //                 highlightAreas: [{
-            //                     height: ((e.y2 - e.y1) / pageSize.height) * 100,
-            //                     left: (e.x1 / pageSize.width) * 100,
-            //                     pageIndex: e.page_number,
-            //                     top: (e.y1 / pageSize.height) * 100,
-            //                     width: ((e.x2 - e.x1) / pageSize.width) * 100,
-            //                 }],
-            //                 context: 'None',
-            //             }],
-            //             kind: 'term',
-            //             color: 'green',
-            //         }
-            //     });
-            //     setNotes(prev => [...prev, ...newNotes]);
-            // })
+    const [mentionHighlightAreas, setMentionHighlightAreas] = useState<[]>(); // First selected area
 
-            // fetch('/api/run_task', {
-            //     method: 'POST',
-            //     body: JSON.stringify({
-            //         agent_id: '1234',
-            //         method: 'search',
-            //         inputs: {
-            //             'query': 'database'
-            //         }
-            //     }),
-            //     headers: { 'Content-Type': 'application/json' }
-            // })
-            // .then(e => e.json())
-            // .then((data: SearchReponse) => {
-            //     console.log(data)
-            //     const newNotes = data.data.map((e, idx) => {
-            //         return {
-            //             id: idx,
-            //             name: 'Test',
-            //             places: [{
-            //                 highlightAreas: [{
-            //                     height: ((e.y2 - e.y1) / pageSize.height) * 100,
-            //                     left: (e.x1 / pageSize.width) * 100,
-            //                     pageIndex: e.page_number,
-            //                     top: (e.y1 / pageSize.height) * 100,
-            //                     width: ((e.x2 - e.x1) / pageSize.width) * 100,
-            //                 }],
-            //                 context: 'None',
-            //             }],
-            //             kind: 'term',
-            //             color: 'green',
-            //         }
-            //     });
-            //     setNotes(newNotes);
-            // })
+    const [intermidiateHighlightAreas, setIntermidiateHighlightAreas] = useState([]);  // Store additional highlights
+
+    const renderHighlightTarget = (props: RenderHighlightTargetProps) => {
+        if (mentionHighlightAreas) { // If mention context selected then select boundary context
+            setTimeout(() => {
+                props.toggle(); // Go to next step
+
+                // Add additional highlight context
+                setIntermidiateHighlightAreas(prev => ([...prev, ...props.highlightAreas]));
+            }, 0);
+            return <div></div>
         }
-    }, [pageSize]);
 
-    // const renderHighlightTarget = (props: RenderHighlightTargetProps) => (
-    //     <div
-    //         style={{
-    //             background: '#eee',
-    //             display: 'flex',
-    //             position: 'absolute',
-    //             left: `${props.selectionRegion.left}%`,
-    //             top: `${props.selectionRegion.top + props.selectionRegion.height}%`,
-    //             transform: 'translate(0, 8px)',
-    //             zIndex: 1000
-    //         }}
-    //     >
-    //         <Tooltip
-    //             position={Position.TopCenter}
-    //             target={
-    //                 <Button onClick={props.toggle}>
-    //                     <MessageIcon />
-    //                 </Button>
-    //             }
-    //             content={() => <div style={{ width: '100px' }}>Add a note</div>}
-    //             offset={{ left: 0, top: -8 }}
-    //         />
-    //     </div>
-    // );
-
-    const renderHighlightTarget = (props: RenderHighlightTargetProps) => (
-        <div
-            style={{
-                background: '#eee',
-                display: 'flex',
-                position: 'absolute',
-                left: `${props.selectionRegion.left}%`,
-                top: `${props.selectionRegion.top + props.selectionRegion.height}%`,
-                transform: 'translate(0, 8px)',
-                zIndex: 1000
-            }}
-        >
-            <Tooltip
-                position={Position.TopCenter}
-                target={
-                    <Button onClick={props.toggle}>
-                        <MessageIcon />
-                    </Button>
-                }
-                content={() => <div style={{ width: '100px' }}>Add a note</div>}
-                offset={{ left: 0, top: -8 }}
-            />
-        </div>
-    );
+        return (
+            <div
+                style={{
+                    background: '#eee',
+                    display: 'flex',
+                    position: 'absolute',
+                    left: `${props.selectionRegion.left}%`,
+                    top: `${props.selectionRegion.top + props.selectionRegion.height}%`,
+                    transform: 'translate(0, 8px)',
+                    zIndex: 1000
+                }}
+            >
+                <Tooltip
+                    position={Position.TopCenter}
+                    target={
+                        <Button onClick={() => {
+                            setMentionHighlightAreas(props.highlightAreas);
+                            setIntermidiateHighlightAreas(props.highlightAreas);
+                            props.cancel();
+                        }}>
+                            <MessageIcon />
+                        </Button>
+                    }
+                    content={() => <div style={{ width: '100px' }}>Add a note</div>}
+                    offset={{ left: 0, top: -8 }}
+                />
+            </div>
+        )
+    };
 
     const [tab, setTab] = useState(0);
     const [kind, setKind] = useState('term');
 
+    
     const renderHighlightContent = (props: RenderHighlightContentProps) => {
         const addNote = () => {
             const note: Note = {
@@ -275,7 +171,7 @@ const PDFAnnotator = ({ url }: { url: string }) => {
                 name: props.selectedText,
                 kind: kind,
                 places: [{
-                    highlightAreas: props.highlightAreas,
+                    highlightAreas: mentionHighlightAreas,
                     context: props.selectionData?.divTexts.map(e => e.textContent).join(' ') || ' '
                 }],
                 color: kindToColor(kind)
@@ -284,6 +180,9 @@ const PDFAnnotator = ({ url }: { url: string }) => {
 
             // Close the form
             props.cancel();
+
+            setIntermidiateHighlightAreas(undefined);
+            setMentionHighlightAreas(undefined);
         };
 
         const handleChange = (event: React.SyntheticEvent, newValue: number) => {
@@ -402,9 +301,7 @@ const PDFAnnotator = ({ url }: { url: string }) => {
                                         {},
                                         {
                                             background: note.color,
-                                            opacity: 0.5,
-                                            // cursor: 'pointer',
-                                            // zIndex: 9999
+                                            opacity: 0.5
                                         },
                                         props.getCssProperties(area, props.rotation)
                                     )}
@@ -414,6 +311,27 @@ const PDFAnnotator = ({ url }: { url: string }) => {
                     }
                 </div>
             ))}
+            {
+                intermidiateHighlightAreas ?
+                <>
+                    {
+                        intermidiateHighlightAreas.map((area, idx) => (
+                            <div
+                                key={idx}
+                                style={Object.assign(
+                                    {},
+                                    {
+                                        background: "lightblue",
+                                        opacity: 0.5
+                                    },
+                                    props.getCssProperties(area, props.rotation)
+                                )}
+                            />
+                        ))
+                    }
+                </>
+                : null
+            }
         </div>
     );
 
@@ -436,7 +354,6 @@ const PDFAnnotator = ({ url }: { url: string }) => {
                             plugins={[
                                 highlightPluginInstance
                             ]}
-                            // defaultScale={1}
                             onDocumentLoad={(e) => {
                                 e.doc.getPage(1).then(data => {
                                     setPageSize({ width: data.view[2], height: data.view[3] });
@@ -480,6 +397,9 @@ const PDFAnnotator = ({ url }: { url: string }) => {
                             />
                         ))
                     }
+                    {
+                        
+                    }
                 </Stack>
             </Stack>
         </Box>
@@ -487,28 +407,24 @@ const PDFAnnotator = ({ url }: { url: string }) => {
 }
 
 export default () => {
-    return <Annotator />
-}
-
-// export default () => {
-//     const [inputValue, setInputValue] = useState<string>();
-//     const [url, setUrl] = useState<string>('https://arxiv.org/pdf/2503.08994');
+    const [inputValue, setInputValue] = useState<string>();
+    const [url, setUrl] = useState<string>('https://arxiv.org/pdf/2503.08994');
     
-//     return (
-//         <>
-//             <Stack height={'min-content'}>
-//                 <TextField
-//                     size="small"
-//                     value={inputValue}
-//                     onChange={(e) => setInputValue(e.target.value)}
-//                 />
-//                 <Button variant='outlined' onClick={() => setUrl(inputValue)}>Set url</Button>
-//             </Stack>
-//             {
-//                 url ?
-//                 <PDFAnnotator url={url} />
-//                 : null
-//             }
-//         </>
-//     );
-// }
+    return (
+        <>
+            <Stack height={'min-content'}>
+                <TextField
+                    size="small"
+                    value={inputValue}
+                    onChange={(e) => setInputValue(e.target.value)}
+                />
+                <Button variant='outlined' onClick={() => setUrl(inputValue)}>Set url</Button>
+            </Stack>
+            {
+                url ?
+                <PDFAnnotator url={url} />
+                : null
+            }
+        </>
+    );
+}

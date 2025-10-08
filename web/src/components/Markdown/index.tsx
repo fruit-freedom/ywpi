@@ -11,7 +11,7 @@ export const Markdown = ({ children }) => {
                 h4: ({ node, ...props }) => <Typography variant="h4" gutterBottom {...props} />,
                 h5: ({ node, ...props }) => <Typography variant="h5" gutterBottom {...props} />,
                 h6: ({ node, ...props }) => <Typography variant="h6" gutterBottom {...props} />,
-                p: ({ node, ...props }) => <Typography variant="body1" {...props} />,
+                p: ({ node, ...props }) => <Typography variant="body1" component={"div"} {...props} />,
                 strong: ({ node, ...props }) => (
                     <Typography component="span" fontWeight="bold" {...props} />
                 ),
@@ -43,8 +43,7 @@ export const Markdown = ({ children }) => {
                 ),
                 code: ({ node, ...props }) => (
                     <Typography
-                        component="code"
-                        sx={{ padding: '2px 4px', backgroundColor: '#8b8b8b30', borderRadius: '4px' }}
+                        sx={{ padding: '2px 4px', backgroundColor: '#8b8b8b1a', borderRadius: '4px' }}
                         {...props}
                     />
                 ),

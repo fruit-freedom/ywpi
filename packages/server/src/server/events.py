@@ -87,6 +87,8 @@ async def update_outputs_object(data: models.TaskUpdatedData):
         traceback.print_exc()
 
 
+from server.apply_update import apply_context_update
+
 async def handle_context_update_event(data: models.TaskUpdatedData):
     """
     {
@@ -105,8 +107,15 @@ async def handle_context_update_event(data: models.TaskUpdatedData):
         if data.outputs is None:
             return
 
-        update = data.outputs.get('$context_update', None)
+        type, data = data.outputs.get("type"), data.outputs.get("data")
+        if not isinstance(type, str) or type != "ContextUpdate" or not isinstance(data, dict):
+            print(type, data)
+            print("isinstance(type, set)", isinstance(type, str))
+            print("type", type)
+            print("isinstance(data, dict)", isinstance(data, dict))
+            return
 
+        update = data.get("update")
         if update is None:
             return
 
@@ -114,19 +123,21 @@ async def handle_context_update_event(data: models.TaskUpdatedData):
             print('Warning: context update data should be dictionary')
             return
 
-        context_id = update.get('$id')
+        context_id = data.get('context_id')
 
         if context_id is None or not isinstance(context_id, str):
-            print('Warning: context $id should be str and specified')
+            print('Warning: context_id should be str and specified')
             return
 
-        mongo_update = {
-            '$push': update.get('$push', {}),
-            '$set': update.get('$set', {}),
-        }
-        print('mongo_update', { '_id': ObjectId(context_id) }, mongo_update)
-        result = await contexts_collection.update_one({ '_id': ObjectId(context_id) }, mongo_update)
-        print('Context update result:', result)
+        await apply_context_update(context_id, update)
+
+        # mongo_update = {
+        #     '$push': update.get('$push', {}),
+        #     '$set': update.get('$set', {}),
+        # }
+        # print('mongo_update', { '_id': ObjectId(context_id) }, mongo_update)
+        # result = await contexts_collection.update_one({ '_id': ObjectId(context_id) }, mongo_update)
+        # print('Context update result:', result)
     except:
         traceback.print_exc()
 
@@ -164,7 +175,7 @@ async def handle_event(event: models.Event):
                 tasks_collection.update_one({ '_id': id }, { '$set': {
                         'status': data.status
                 }})
-            await create_objects_from_event_data(data)
+            # await create_objects_from_event_data(data)
             await handle_context_update_event(data)
             # await update_outputs_object(data)
         elif kind == 'completed':
@@ -175,31 +186,34 @@ async def handle_event(event: models.Event):
 
 
 async def consume_events() -> None:
-    print(f'Start consuming events from {RQ_CONNECTION_STRING} {RQ_EXCHANGE_NAME}')
+    try:
+        print(f'Start consuming events from {RQ_CONNECTION_STRING} {RQ_EXCHANGE_NAME}')
 
-    # Perform connection
-    connection = await connect(RQ_CONNECTION_STRING)
+        # Perform connection
+        connection = await connect(RQ_CONNECTION_STRING)
 
-    # Creating a channel
-    channel = await connection.channel()
-    exchange = await channel.get_exchange(RQ_EXCHANGE_NAME)
+        # Creating a channel
+        channel = await connection.channel()
+        exchange = await channel.get_exchange(RQ_EXCHANGE_NAME)
 
-    # Declaring queue (Queue MUST be durable for preventing events disappearing)
-    queue = await channel.declare_queue('server.queue', durable=False)
+        # Declaring queue (Queue MUST be durable for preventing events disappearing)
+        queue = await channel.declare_queue('server.queue', durable=True)
 
-    # Bind queue to exchanger for listening all events
-    await queue.bind(exchange, '#')
+        # Bind queue to exchanger for listening all events
+        await queue.bind(exchange, '#')
 
-    async with queue.iterator() as qiterator:
-        message: AbstractIncomingMessage
-        async for message in qiterator:
-            try:
-                async with message.process(requeue=False):
-                    event = models.Event.model_validate_json(message.body)
-                    await handle_event(event)
-                    for listener in SUBSCRIBERS.values():
-                        listener.put_nowait(event.model_dump_json())
-            except Exception:
-                import traceback
-                traceback.print_exc()
-                print('Processing error for message %r', message)
+        async with queue.iterator() as qiterator:
+            message: AbstractIncomingMessage
+            async for message in qiterator:
+                try:
+                    async with message.process(requeue=False):
+                        event = models.Event.model_validate_json(message.body)
+                        await handle_event(event)
+                        for listener in SUBSCRIBERS.values():
+                            listener.put_nowait(event.model_dump_json())
+                except Exception:
+                    import traceback
+                    traceback.print_exc()
+                    print('Processing error for message %r', message)
+    except:
+        traceback.print_exc()

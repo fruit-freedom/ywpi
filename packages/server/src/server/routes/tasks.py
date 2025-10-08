@@ -15,12 +15,13 @@ from .. import hub_pb2
 from .. import hub_pb2_grpc
 from .. import models
 from .objects import create_object
+from server.settings import HUB_CONNECTION_STRING
 
 hub_stub: hub_pb2_grpc.HubStub = None
 
 async def lifespan(app):
     global hub_stub
-    async with grpc.aio.insecure_channel('localhost:50051') as channel:
+    async with grpc.aio.insecure_channel(HUB_CONNECTION_STRING) as channel:
         hub_stub = hub_pb2_grpc.HubStub(channel)
         yield
 

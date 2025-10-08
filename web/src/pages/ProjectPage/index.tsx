@@ -366,15 +366,14 @@ export default () => {
             </Box> */}
             <Stack width={'100%'}>
                 <Stack direction={'row'} gap={4} alignItems={'flex-end'}>
-                    <Typography variant="h5" fontWeight={700}>{project?.name}</Typography>
-                    <Tabs value={tab} onChange={(event, newValue: number) => setTab(newValue)}>
+                    {/* <Tabs value={tab} onChange={(event, newValue: number) => setTab(newValue)}>
                         <Tab label="Contexts" {...a11yProps(0)}/>
                         <Tab label="Objects" {...a11yProps(1)}/>
-                    </Tabs>
+                    </Tabs> */}
                 </Stack>
                 <TabPanel value={tab} index={0}>
                     <Box>
-                        <ContextsList projectId={projectId}/>
+                        <ContextsList projectId={projectId} projectName={project?.name}/>
                     </Box>
                 </TabPanel>
                 <TabPanel value={tab} index={1}>

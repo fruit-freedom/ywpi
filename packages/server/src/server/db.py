@@ -1,6 +1,8 @@
 import motor.motor_asyncio
+from server import settings
 
-client = motor.motor_asyncio.AsyncIOMotorClient('mongodb://mongo:mongo@localhost:27017/')
+
+client = motor.motor_asyncio.AsyncIOMotorClient(settings.MONGO_CONNECTION_STRING)
 mongodb = client['ywpi']
 
 agents_collection = mongodb['agents']

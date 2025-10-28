@@ -4,7 +4,6 @@ warnings.simplefilter("ignore", UserWarning)
 import threading
 from concurrent import futures
 import inspect
-import sys
 import typing
 import uuid
 import inspect
@@ -18,12 +17,12 @@ from . import hub_pb2_grpc
 from . import hub_models
 from .logger import logger
 from . import settings
-from ywpi import Spec, MethodDescription, RegisteredMethod, REGISTERED_METHODS
-from ywpi.handle_args import handle_args, InputTyping
-from ywpi.serialization import handle_outputs
-from .stream import Stream
+from ywpi import RegisteredMethod, REGISTERED_METHODS
+from ywpi.handle_args import InputTyping
 from .io_manager import IOManager
 from .method_schemes import get_function_schema
+from ywpi.exceptions import get_exception_serialization_model
+
 
 class Channel:
     def __init__(self):
@@ -162,6 +161,7 @@ class SimpleMethodExecuter:
     ):
         final_outputs = None
         final_status = 'failed'
+        error = None
         try:
             staticgenerator = isinstance(method, staticmethod) and inspect.isgeneratorfunction(method.__func__)
             if inspect.isgeneratorfunction(method) or staticgenerator:
@@ -174,12 +174,33 @@ class SimpleMethodExecuter:
                 final_outputs = method(**kwargs)
             final_status = 'completed'
         except BaseException as e:
-            logger.warning(f'Method raise exception: {traceback.format_exc()}')
-            final_status = 'failed'
+            # TODO: Move handling to distinct static method
+            tb = traceback.format_exc()
+            logger.warning(f"Method raise exception: {tb}")
+            data = None
+            try:
+                serialization_model = get_exception_serialization_model(e)
+                data = (
+                    serialization_model
+                    .model_validate(e, from_attributes=True)
+                    .model_dump(mode='json')
+                ) if serialization_model is not None else None
+            except:
+                logger.warning(f"Error while serializing error: {traceback.format_exc()}")
+
+            error = hub_models.Error(
+                type="MethodExecutionError",
+                traceback=tb,
+                data={
+                    "source_exception_type": type(e).__name__,
+                    "data": data
+                }
+            )
+            final_status = "failed"
         finally:
             try:
                 logger.debug(f'Start cleanup steps for task "{io_manager.task_id}"')
-                io_manager.update_task_status(final_status, final_outputs).result()
+                io_manager.update_task_status(final_status, final_outputs, error=error).result()
                 executer._perform_task_cleanup(io_manager.task_id)
             except:
                 logger.error(f'Task cleanup steps error: {traceback.format_exc()}')
@@ -318,7 +339,7 @@ class Exchanger:
         except BaseException as e:
             self.finish.set_exception(e)
         else:
-            self.finish.set_exception(Exception())
+            self.finish.set_exception(RuntimeError("hub connection broken"))
         finally:
             with self.outgoings_requests_lock:
                 [ f.set_exception(Exception()) for f in self.outgoings_requests.values() ]
@@ -440,7 +461,6 @@ def track(fn):
                 )
                 task = hub_models.StartTrackinTaskResponse.model_validate_json(task.result().payload)
 
-                print('Task', task)
                 io_manager = IOManager(task.id, None, exchanger)
                 SimpleMethodExecuter._method_wrapper(io_manager, None, fn, kwargs)
 

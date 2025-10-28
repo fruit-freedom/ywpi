@@ -82,7 +82,7 @@ class IOManager:
 
         return params
 
-    def update_task_status(self, status: str, final_outputs: dict = None):
+    def update_task_status(self, status: str, final_outputs: dict = None, error: hub_models.Error = None):
         outputs = None
         try:
             outputs = serialization.handle_outputs(final_outputs) if final_outputs is not None else None
@@ -93,7 +93,8 @@ class IOManager:
         return self._connection.call_update_task(hub_models.UpdateTaskRequest(
             id=self._task_id,
             status=status,
-            outputs=outputs
+            outputs=outputs,
+            error=error
         ))
 
     def append_stream(self, stream_id: str, init_items: list | None = None):

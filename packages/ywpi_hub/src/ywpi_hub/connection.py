@@ -2,13 +2,11 @@ import asyncio
 import uuid
 import typing as t
 import traceback
-from contextlib import asynccontextmanager
-from collections import defaultdict
 
 import aiochannel
 
-from ywpi_hub.logger import logger
 from ywpi_hub import hub_pb2, hub_models
+from ywpi_hub.logger import logger
 from ywpi_hub.tasks_respository import TaskRepository
 from ywpi_hub.agents_repository import AgentRepository
 
@@ -179,7 +177,7 @@ class AgentCommunicator:
             await self._tasks_repository.update_outputs(payload.id, payload.outputs)
 
         if payload.status is not None:
-            await self._tasks_repository.update_status(payload.id, payload.status)
+            await self._tasks_repository.update_status(payload.id, payload.status, payload.error)
 
         return hub_models.UpdateTaskResponse()
 
@@ -209,160 +207,3 @@ class AgentCommunicator:
 
     async def close(self):
         await self._agents_repository.remove(self._agent_description.id)
-
-
-
-from ywpi_hub import hub_pb2_grpc
-import grpc
-from ywpi_hub.events.repository import repository 
-import pydantic
-
-
-class Hub(hub_pb2_grpc.HubServicer):
-    def __init__(self):
-        super().__init__()
-        self.agents_repository = AgentRepository()
-        self.tasks_respository = TaskRepository()
-
-    async def Connect(self, request_iterator, context: grpc.ServicerContext):
-        """
-        1. Client connected and `Connection` created
-        2. Client perform `register` protocol and became `Agent`
-            2.1. Connection registered in `AgentsRepository` and became `Agent`
-        3. All communications with agent (actually connection) perfromed through `AgentsRepository`
-
-        If agent can perform some actions without autorization?
-        """
-        connection = Connection(request_iterator)
-
-        # Possibly leak agent
-        agent = AgentCommunicator(connection, self.tasks_respository, self.agents_repository)
-
-        try:
-            async for message in connection.output_channel:
-                yield message
-        except asyncio.CancelledError:
-            pass
-        except:
-            traceback.print_exc()
-        finally:
-            await agent.close()
-            await connection.close()
-            logger.info("Disconected agent")
-
-    async def execute_method(self, agent_id: str, method_name: str, inputs: dict):
-        """
-        Automatically move first level bytes inputs to attachments
-        """
-        agent = self.agents_repository.get(agent_id)
-
-        referenced_inputs = {}
-        attachments = {}
-        context = { "attachments": attachments }
-        for input_name, input_value in inputs.items():
-            if isinstance(input_value, pydantic.BaseModel):
-                serialized_input_value = input_value.model_dump(mode='json', context=context)
-                referenced_inputs[input_name] = serialized_input_value
-            else:
-                referenced_inputs[input_name] = input_value
-
-        created_task, future = await self.tasks_respository.add_with_tracking(agent_id, method_name, referenced_inputs)
-        response = await agent.connector.start_task(hub_models.StartTaskRequest(
-            id=created_task.id,
-            method=method_name,
-            params=referenced_inputs,
-            attachments=attachments
-        ))
-
-        task = await future
-        return task.outputs
-
-    async def run(self):
-        server = grpc.aio.server()
-        hub_pb2_grpc.add_HubServicer_to_server(self, server)
-        server.add_insecure_port("[::]:50051")
-
-        await server.start()
-        logger.info('Started and listening on [::]:50051')
-
-        try:
-            await repository.init()
-            await server.wait_for_termination()
-        except BaseException:
-            traceback.print_exc()
-            await server.stop(0)
-        finally:
-            await repository.close()
-
-    @asynccontextmanager
-    async def start(self):
-        server = grpc.aio.server()
-        hub_pb2_grpc.add_HubServicer_to_server(self, server)
-        server.add_insecure_port("[::]:50051")
-        await server.start()
-
-        logger.info('Started and listening on [::]:50051')
-        try:
-            await repository.init()
-
-            yield
-
-            await server.stop(0)
-        except BaseException:
-            traceback.print_exc()
-        finally:
-            await repository.close()
-
-
-@asynccontextmanager
-async def _default_lifespan():
-    yield
-
-
-class HubApp(Hub):
-    # Application code require
-    #   - Read only access to agents repository + subscribtion + calling
-    #   - Read only access to tasks repository + subscribtion
-    def __init__(self, lifespan: t.AsyncContextManager | None = None):
-        super().__init__()
-        self._lifespan = lifespan if lifespan is not None else _default_lifespan
-
-        self._callbacks: dict[
-            t.Literal["agent_connected", "agent_disconnected", "task_event"], list
-        ] = defaultdict(lambda: [])
-
-    async def run(self):
-        async with _default_lifespan():
-            await super().run()
-
-    @asynccontextmanager
-    async def start(self):
-        await self._init()
-        async with self._lifespan():
-            async with super().start():
-                yield
-
-    def on_agent_connected(self, func):
-        self._callbacks['agent_connected'].append(func)
-        return func
-
-    def on_agent_disconnected(self, func):
-        self._callbacks['agent_disconnected'].append(func)
-        return func
-
-    async def _init(self):
-        asyncio.create_task(self._subscriber_task())
-
-    async def _subscriber_task(self):
-        async for event in self.agents_repository.subscribe_on_updates():
-            callbacks = []
-            if isinstance(event, dict) and len(event) > 1:
-                callbacks = self._callbacks['agent_connected']
-            elif isinstance(event, dict) and len(event) == 1:
-                callbacks = self._callbacks['agent_disconnected']
-
-            for func in callbacks:
-                try:
-                    await func(event)
-                except:
-                    traceback.print_exc()

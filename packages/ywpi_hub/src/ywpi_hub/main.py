@@ -259,28 +259,9 @@ class Hub(hub_pb2_grpc.HubServicer):
 
 
 async def main():
-    server = grpc.aio.server()
-    hub_pb2_grpc.add_HubServicer_to_server(Hub(), server)
-    server.add_insecure_port("[::]:50051")
-    await server.start()
-    logger.info('Started and listening on [::]:50051')
-
-    async def waiter_task():
-        try:
-            await server.wait_for_termination()
-        except:
-            logger.info(f'Stop server')
-    task = asyncio.create_task(waiter_task())
-
-    try:
-        await events.init()
-        await task
-    except BaseException:
-        print(traceback.format_exc())
-        await server.stop(0)
-    finally:
-        await task
-        await events.close()
+    from ywpi_hub.app import HubApp
+    app = HubApp(agents_repository=agents, tasks_respository=tasks)
+    await app.run()
 
 
 def runserver():

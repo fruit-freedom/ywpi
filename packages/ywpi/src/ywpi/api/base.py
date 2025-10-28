@@ -38,7 +38,11 @@ class Method:
 
     def _handle_response(self, response: hub_pb2.RunTaskResponse):
         if response.HasField('error'):
-            raise RuntimeError(f'Execution error: {response.error}')
+            error = response.error
+            data = json.loads(error.data) if error.HasField("data") else None
+            traceback = error.traceback
+            exception = hub_models.YwpiException.from_data(type=error.type, data=data, traceback=traceback)
+            raise exception
 
         outputs = json.loads(response.outputs)
         if '__others__' in outputs:

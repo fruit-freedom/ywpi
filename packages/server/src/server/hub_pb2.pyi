@@ -56,25 +56,37 @@ class Message(_message.Message):
     attachments: _containers.ScalarMap[str, bytes]
     def __init__(self, reply_to: _Optional[str] = ..., request: _Optional[_Union[RequestMessage, _Mapping]] = ..., response: _Optional[_Union[ResponseMessage, _Mapping]] = ..., attachments: _Optional[_Mapping[str, bytes]] = ...) -> None: ...
 
+class Error(_message.Message):
+    __slots__ = ("type", "traceback", "data")
+    TYPE_FIELD_NUMBER: _ClassVar[int]
+    TRACEBACK_FIELD_NUMBER: _ClassVar[int]
+    DATA_FIELD_NUMBER: _ClassVar[int]
+    type: str
+    traceback: str
+    data: str
+    def __init__(self, type: _Optional[str] = ..., traceback: _Optional[str] = ..., data: _Optional[str] = ...) -> None: ...
+
 class PushTaskRequest(_message.Message):
-    __slots__ = ("agent_id", "method", "params", "payload")
+    __slots__ = ("agent_id", "method", "params", "payload", "silent")
     AGENT_ID_FIELD_NUMBER: _ClassVar[int]
     METHOD_FIELD_NUMBER: _ClassVar[int]
     PARAMS_FIELD_NUMBER: _ClassVar[int]
     PAYLOAD_FIELD_NUMBER: _ClassVar[int]
+    SILENT_FIELD_NUMBER: _ClassVar[int]
     agent_id: str
     method: str
     params: str
     payload: str
-    def __init__(self, agent_id: _Optional[str] = ..., method: _Optional[str] = ..., params: _Optional[str] = ..., payload: _Optional[str] = ...) -> None: ...
+    silent: bool
+    def __init__(self, agent_id: _Optional[str] = ..., method: _Optional[str] = ..., params: _Optional[str] = ..., payload: _Optional[str] = ..., silent: bool = ...) -> None: ...
 
 class PushTaskResponse(_message.Message):
     __slots__ = ("task_id", "error")
     TASK_ID_FIELD_NUMBER: _ClassVar[int]
     ERROR_FIELD_NUMBER: _ClassVar[int]
     task_id: str
-    error: str
-    def __init__(self, task_id: _Optional[str] = ..., error: _Optional[str] = ...) -> None: ...
+    error: Error
+    def __init__(self, task_id: _Optional[str] = ..., error: _Optional[_Union[Error, _Mapping]] = ...) -> None: ...
 
 class RunTaskResponse(_message.Message):
     __slots__ = ("task_id", "error", "outputs")
@@ -82,9 +94,9 @@ class RunTaskResponse(_message.Message):
     ERROR_FIELD_NUMBER: _ClassVar[int]
     OUTPUTS_FIELD_NUMBER: _ClassVar[int]
     task_id: str
-    error: str
+    error: Error
     outputs: str
-    def __init__(self, task_id: _Optional[str] = ..., error: _Optional[str] = ..., outputs: _Optional[str] = ...) -> None: ...
+    def __init__(self, task_id: _Optional[str] = ..., error: _Optional[_Union[Error, _Mapping]] = ..., outputs: _Optional[str] = ...) -> None: ...
 
 class GetAgentsListRequest(_message.Message):
     __slots__ = ()
@@ -131,5 +143,5 @@ class SubscribeOnAgentsResponse(_message.Message):
     PAYLOAD_FIELD_NUMBER: _ClassVar[int]
     ERROR_FIELD_NUMBER: _ClassVar[int]
     payload: str
-    error: str
-    def __init__(self, payload: _Optional[str] = ..., error: _Optional[str] = ...) -> None: ...
+    error: Error
+    def __init__(self, payload: _Optional[str] = ..., error: _Optional[_Union[Error, _Mapping]] = ...) -> None: ...

@@ -60,22 +60,29 @@ message Message {
 
 // ---- ---- ---- ---- Hub internal communication API ---- ---- ---- ---- //
 
+message Error {
+    string type = 1;
+    optional string traceback = 2;
+    optional string data = 3;
+}
+
 message PushTaskRequest {
     string agent_id = 1;
     string method = 2;
     string params = 3;
     string payload = 4;
+    optional bool silent = 5; // Does not produce any events (for RunTask method only)
     // map<string, bytes> attachments = 5;
 }
 
 message PushTaskResponse {
     optional string task_id = 1;
-    optional string error = 2;
+    optional Error error = 2;
 }
 
 message RunTaskResponse {
     optional string task_id = 1;
-    optional string error = 2;
+    optional Error error = 2;
     optional string outputs = 3;
 }
 
@@ -108,5 +115,5 @@ message SubscribeOnAgentsRequest {
 
 message SubscribeOnAgentsResponse {
     optional string payload = 1;
-    optional string error = 2;
+    optional Error error = 2;
 }

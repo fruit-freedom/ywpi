@@ -64,6 +64,8 @@ class AgentRepository:
         return agent_description
 
     def get(self, id) -> AgentDescription:
+        if id not in self._agents:
+            raise hub_models.AgentNotFoundError()
         return self._agents[id]
 
     def get_list(self) -> typing.Iterable[AgentDescription]:

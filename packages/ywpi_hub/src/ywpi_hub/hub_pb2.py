@@ -14,7 +14,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\thub.proto\"4\n\x0eRequestMessage\x12\x11\n\x03rpc\x18\x01 \x01(\x0e\x32\x04.Rpc\x12\x0f\n\x07payload\x18\x03 \x01(\t\"Q\n\x0fResponseMessage\x12\x14\n\x07payload\x18\x02 \x01(\tH\x00\x88\x01\x01\x12\x12\n\x05\x65rror\x18\x03 \x01(\tH\x01\x88\x01\x01\x42\n\n\x08_payloadB\x08\n\x06_error\"\xd4\x01\n\x07Message\x12\x10\n\x08reply_to\x18\x01 \x01(\t\x12\"\n\x07request\x18\x02 \x01(\x0b\x32\x0f.RequestMessageH\x00\x12$\n\x08response\x18\x03 \x01(\x0b\x32\x10.ResponseMessageH\x00\x12.\n\x0b\x61ttachments\x18\x04 \x03(\x0b\x32\x19.Message.AttachmentsEntry\x1a\x32\n\x10\x41ttachmentsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x0c:\x02\x38\x01\x42\t\n\x07message\"T\n\x0fPushTaskRequest\x12\x10\n\x08\x61gent_id\x18\x01 \x01(\t\x12\x0e\n\x06method\x18\x02 \x01(\t\x12\x0e\n\x06params\x18\x03 \x01(\t\x12\x0f\n\x07payload\x18\x04 \x01(\t\"R\n\x10PushTaskResponse\x12\x14\n\x07task_id\x18\x01 \x01(\tH\x00\x88\x01\x01\x12\x12\n\x05\x65rror\x18\x02 \x01(\tH\x01\x88\x01\x01\x42\n\n\x08_task_idB\x08\n\x06_error\"s\n\x0fRunTaskResponse\x12\x14\n\x07task_id\x18\x01 \x01(\tH\x00\x88\x01\x01\x12\x12\n\x05\x65rror\x18\x02 \x01(\tH\x01\x88\x01\x01\x12\x14\n\x07outputs\x18\x03 \x01(\tH\x02\x88\x01\x01\x42\n\n\x08_task_idB\x08\n\x06_errorB\n\n\x08_outputs\"\x16\n\x14GetAgentsListRequest\"#\n\x05Input\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x0c\n\x04type\x18\x02 \x01(\t\".\n\x06Method\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x16\n\x06inputs\x18\x02 \x03(\x0b\x32\x06.Input\";\n\x05\x41gent\x12\n\n\x02id\x18\x01 \x01(\t\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\x18\n\x07methods\x18\x03 \x03(\x0b\x32\x07.Method\"/\n\x15GetAgentsListResponse\x12\x16\n\x06\x61gents\x18\x01 \x03(\x0b\x32\x06.Agent\"\x1a\n\x18SubscribeOnAgentsRequest\"[\n\x19SubscribeOnAgentsResponse\x12\x14\n\x07payload\x18\x01 \x01(\tH\x00\x88\x01\x01\x12\x12\n\x05\x65rror\x18\x02 \x01(\tH\x01\x88\x01\x01\x42\n\n\x08_payloadB\x08\n\x06_error*\x86\x01\n\x03Rpc\x12\x11\n\rRPC_UNDEFINED\x10\x00\x12\x16\n\x12RPC_REGISTER_AGENT\x10\x01\x12\x17\n\x13RPC_HEARTBEAT_AGENT\x10\x02\x12\x12\n\x0eRPC_START_TASK\x10\x03\x12\x12\n\x0eRPC_ABORT_TASK\x10\x04\x12\x13\n\x0fRPC_UPDATE_TASK\x10\x05\x32\x96\x02\n\x03Hub\x12!\n\x07\x43onnect\x12\x08.Message\x1a\x08.Message(\x01\x30\x01\x12/\n\x08PushTask\x12\x10.PushTaskRequest\x1a\x11.PushTaskResponse\x12-\n\x07RunTask\x12\x10.PushTaskRequest\x1a\x10.RunTaskResponse\x12>\n\rGetAgentsList\x12\x15.GetAgentsListRequest\x1a\x16.GetAgentsListResponse\x12L\n\x11SubscribeOnAgents\x12\x19.SubscribeOnAgentsRequest\x1a\x1a.SubscribeOnAgentsResponse0\x01\x62\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\thub.proto\"4\n\x0eRequestMessage\x12\x11\n\x03rpc\x18\x01 \x01(\x0e\x32\x04.Rpc\x12\x0f\n\x07payload\x18\x03 \x01(\t\"Q\n\x0fResponseMessage\x12\x14\n\x07payload\x18\x02 \x01(\tH\x00\x88\x01\x01\x12\x12\n\x05\x65rror\x18\x03 \x01(\tH\x01\x88\x01\x01\x42\n\n\x08_payloadB\x08\n\x06_error\"\xd4\x01\n\x07Message\x12\x10\n\x08reply_to\x18\x01 \x01(\t\x12\"\n\x07request\x18\x02 \x01(\x0b\x32\x0f.RequestMessageH\x00\x12$\n\x08response\x18\x03 \x01(\x0b\x32\x10.ResponseMessageH\x00\x12.\n\x0b\x61ttachments\x18\x04 \x03(\x0b\x32\x19.Message.AttachmentsEntry\x1a\x32\n\x10\x41ttachmentsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x0c:\x02\x38\x01\x42\t\n\x07message\"W\n\x05\x45rror\x12\x0c\n\x04type\x18\x01 \x01(\t\x12\x16\n\ttraceback\x18\x02 \x01(\tH\x00\x88\x01\x01\x12\x11\n\x04\x64\x61ta\x18\x03 \x01(\tH\x01\x88\x01\x01\x42\x0c\n\n_tracebackB\x07\n\x05_data\"t\n\x0fPushTaskRequest\x12\x10\n\x08\x61gent_id\x18\x01 \x01(\t\x12\x0e\n\x06method\x18\x02 \x01(\t\x12\x0e\n\x06params\x18\x03 \x01(\t\x12\x0f\n\x07payload\x18\x04 \x01(\t\x12\x13\n\x06silent\x18\x05 \x01(\x08H\x00\x88\x01\x01\x42\t\n\x07_silent\"Z\n\x10PushTaskResponse\x12\x14\n\x07task_id\x18\x01 \x01(\tH\x00\x88\x01\x01\x12\x1a\n\x05\x65rror\x18\x02 \x01(\x0b\x32\x06.ErrorH\x01\x88\x01\x01\x42\n\n\x08_task_idB\x08\n\x06_error\"{\n\x0fRunTaskResponse\x12\x14\n\x07task_id\x18\x01 \x01(\tH\x00\x88\x01\x01\x12\x1a\n\x05\x65rror\x18\x02 \x01(\x0b\x32\x06.ErrorH\x01\x88\x01\x01\x12\x14\n\x07outputs\x18\x03 \x01(\tH\x02\x88\x01\x01\x42\n\n\x08_task_idB\x08\n\x06_errorB\n\n\x08_outputs\"\x16\n\x14GetAgentsListRequest\"#\n\x05Input\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x0c\n\x04type\x18\x02 \x01(\t\".\n\x06Method\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x16\n\x06inputs\x18\x02 \x03(\x0b\x32\x06.Input\";\n\x05\x41gent\x12\n\n\x02id\x18\x01 \x01(\t\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\x18\n\x07methods\x18\x03 \x03(\x0b\x32\x07.Method\"/\n\x15GetAgentsListResponse\x12\x16\n\x06\x61gents\x18\x01 \x03(\x0b\x32\x06.Agent\"\x1a\n\x18SubscribeOnAgentsRequest\"c\n\x19SubscribeOnAgentsResponse\x12\x14\n\x07payload\x18\x01 \x01(\tH\x00\x88\x01\x01\x12\x1a\n\x05\x65rror\x18\x02 \x01(\x0b\x32\x06.ErrorH\x01\x88\x01\x01\x42\n\n\x08_payloadB\x08\n\x06_error*\x86\x01\n\x03Rpc\x12\x11\n\rRPC_UNDEFINED\x10\x00\x12\x16\n\x12RPC_REGISTER_AGENT\x10\x01\x12\x17\n\x13RPC_HEARTBEAT_AGENT\x10\x02\x12\x12\n\x0eRPC_START_TASK\x10\x03\x12\x12\n\x0eRPC_ABORT_TASK\x10\x04\x12\x13\n\x0fRPC_UPDATE_TASK\x10\x05\x32\x96\x02\n\x03Hub\x12!\n\x07\x43onnect\x12\x08.Message\x1a\x08.Message(\x01\x30\x01\x12/\n\x08PushTask\x12\x10.PushTaskRequest\x1a\x11.PushTaskResponse\x12-\n\x07RunTask\x12\x10.PushTaskRequest\x1a\x10.RunTaskResponse\x12>\n\rGetAgentsList\x12\x15.GetAgentsListRequest\x1a\x16.GetAgentsListResponse\x12L\n\x11SubscribeOnAgents\x12\x19.SubscribeOnAgentsRequest\x1a\x1a.SubscribeOnAgentsResponse0\x01\x62\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -23,8 +23,8 @@ if not _descriptor._USE_C_DESCRIPTORS:
   DESCRIPTOR._loaded_options = None
   _globals['_MESSAGE_ATTACHMENTSENTRY']._loaded_options = None
   _globals['_MESSAGE_ATTACHMENTSENTRY']._serialized_options = b'8\001'
-  _globals['_RPC']._serialized_start=993
-  _globals['_RPC']._serialized_end=1127
+  _globals['_RPC']._serialized_start=1138
+  _globals['_RPC']._serialized_end=1272
   _globals['_REQUESTMESSAGE']._serialized_start=13
   _globals['_REQUESTMESSAGE']._serialized_end=65
   _globals['_RESPONSEMESSAGE']._serialized_start=67
@@ -33,26 +33,28 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_MESSAGE']._serialized_end=363
   _globals['_MESSAGE_ATTACHMENTSENTRY']._serialized_start=302
   _globals['_MESSAGE_ATTACHMENTSENTRY']._serialized_end=352
-  _globals['_PUSHTASKREQUEST']._serialized_start=365
-  _globals['_PUSHTASKREQUEST']._serialized_end=449
-  _globals['_PUSHTASKRESPONSE']._serialized_start=451
-  _globals['_PUSHTASKRESPONSE']._serialized_end=533
-  _globals['_RUNTASKRESPONSE']._serialized_start=535
-  _globals['_RUNTASKRESPONSE']._serialized_end=650
-  _globals['_GETAGENTSLISTREQUEST']._serialized_start=652
-  _globals['_GETAGENTSLISTREQUEST']._serialized_end=674
-  _globals['_INPUT']._serialized_start=676
-  _globals['_INPUT']._serialized_end=711
-  _globals['_METHOD']._serialized_start=713
-  _globals['_METHOD']._serialized_end=759
-  _globals['_AGENT']._serialized_start=761
-  _globals['_AGENT']._serialized_end=820
-  _globals['_GETAGENTSLISTRESPONSE']._serialized_start=822
-  _globals['_GETAGENTSLISTRESPONSE']._serialized_end=869
-  _globals['_SUBSCRIBEONAGENTSREQUEST']._serialized_start=871
-  _globals['_SUBSCRIBEONAGENTSREQUEST']._serialized_end=897
-  _globals['_SUBSCRIBEONAGENTSRESPONSE']._serialized_start=899
-  _globals['_SUBSCRIBEONAGENTSRESPONSE']._serialized_end=990
-  _globals['_HUB']._serialized_start=1130
-  _globals['_HUB']._serialized_end=1408
+  _globals['_ERROR']._serialized_start=365
+  _globals['_ERROR']._serialized_end=452
+  _globals['_PUSHTASKREQUEST']._serialized_start=454
+  _globals['_PUSHTASKREQUEST']._serialized_end=570
+  _globals['_PUSHTASKRESPONSE']._serialized_start=572
+  _globals['_PUSHTASKRESPONSE']._serialized_end=662
+  _globals['_RUNTASKRESPONSE']._serialized_start=664
+  _globals['_RUNTASKRESPONSE']._serialized_end=787
+  _globals['_GETAGENTSLISTREQUEST']._serialized_start=789
+  _globals['_GETAGENTSLISTREQUEST']._serialized_end=811
+  _globals['_INPUT']._serialized_start=813
+  _globals['_INPUT']._serialized_end=848
+  _globals['_METHOD']._serialized_start=850
+  _globals['_METHOD']._serialized_end=896
+  _globals['_AGENT']._serialized_start=898
+  _globals['_AGENT']._serialized_end=957
+  _globals['_GETAGENTSLISTRESPONSE']._serialized_start=959
+  _globals['_GETAGENTSLISTRESPONSE']._serialized_end=1006
+  _globals['_SUBSCRIBEONAGENTSREQUEST']._serialized_start=1008
+  _globals['_SUBSCRIBEONAGENTSREQUEST']._serialized_end=1034
+  _globals['_SUBSCRIBEONAGENTSRESPONSE']._serialized_start=1036
+  _globals['_SUBSCRIBEONAGENTSRESPONSE']._serialized_end=1135
+  _globals['_HUB']._serialized_start=1275
+  _globals['_HUB']._serialized_end=1553
 # @@protoc_insertion_point(module_scope)

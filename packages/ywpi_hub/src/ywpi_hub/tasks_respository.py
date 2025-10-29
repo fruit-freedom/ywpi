@@ -100,6 +100,9 @@ class TaskRepository:
                 if not fut.cancelled():
                     if status == "failed":
                         task.error = error
+                        # As error is optional there is requirement to set task status
+                        # TODO: Add test on this case
+                        task.status = status
                         error = error.model_dump(mode='json') if error is not None else error
                     fut.set_result(task)
         else:

@@ -97,7 +97,7 @@ class Hub(hub_pb2_grpc.HubServicer):
             ))
 
             task = await future
-            if task.error is not None:
+            if task.error is not None or task.status == "failed":
                 return hub_pb2.RunTaskResponse(
                     error=hub_pb2.Error(
                         type=task.error.type,
@@ -169,7 +169,7 @@ class Hub(hub_pb2_grpc.HubServicer):
         ))
 
         task = await future
-        if task.error is not None:
+        if task.error is not None or task.status == "failed":
             exception = hub_models.YwpiException.from_data(
                 type=task.error.type,
                 data=task.error.data,

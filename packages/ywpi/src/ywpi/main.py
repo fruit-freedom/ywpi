@@ -364,7 +364,8 @@ class Exchanger:
 
 grpc_channel_options = [
     ('grpc.max_send_message_length', settings.YWPI_GRPC_MAX_MESSAGE_SIZE),
-    ('grpc.max_receive_message_length', settings.YWPI_GRPC_MAX_MESSAGE_SIZE)
+    ('grpc.max_receive_message_length', settings.YWPI_GRPC_MAX_MESSAGE_SIZE),
+    ('grpc.keepalive_time_ms', settings.YWPI_GRPC_KEEPALIVE_TIME_MS)
 ]
 
 

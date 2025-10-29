@@ -70,3 +70,7 @@ build_ywpi_hub:
 publish:
 	uv publish --token $(UV_PUBLISH_TOKEN)
 
+
+.PHONY: run_tests
+run_tests:
+	python -m pytest packages/ywpi_hub/tests/test_simple.py

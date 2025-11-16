@@ -1,21 +1,7 @@
 import { Box, Button, Divider, Stack, styled, TextField } from "@mui/material";
 import { Markdown } from "../../../components/Markdown";
-import {
-    CodeBlockEditorDescriptor,
-    codeBlockPlugin,
-    headingsPlugin,
-    listsPlugin,
-    markdownShortcutPlugin,
-    MDXEditor,
-    MDXEditorMethods,
-    quotePlugin,
-    useCodeBlockEditorContext
-} from "@mdxeditor/editor";
 import "./index.css"
 import { useEffect, useRef, useState } from "react";
-import {EditorView, basicSetup} from "codemirror"
-import {keymap, ViewUpdate} from "@codemirror/view"
-import {indentWithTab} from "@codemirror/commands"
 import { ContextProps } from "../../../pages/ContextPage/types";
 
 const Message = styled(Box)({
@@ -157,8 +143,8 @@ export const Chat = ({ data, contextId, applyContextUpdate }: ContextProps<State
         <Stack gap={1} padding={1}>
             {
                 data.messages?.map((e, idx) => (
-                    <Message key={idx} justifyContent={e.role === 'user' ? 'flex-start' : 'flex-end'}>
-                        <EditableMessageContent
+                    <Message key={idx} justifyContent={e.role !== 'user' ? 'flex-start' : 'flex-end'}>
+                        {/* <EditableMessageContent
                             content={e.content}
                             onChange={(value) => applyContextUpdate({
                                 $set: {
@@ -168,7 +154,8 @@ export const Chat = ({ data, contextId, applyContextUpdate }: ContextProps<State
                                     }
                                 }
                             })}
-                        />
+                        /> */}
+                        <Markdown>{e.content}</Markdown>
                     </Message>
                 ))
             }

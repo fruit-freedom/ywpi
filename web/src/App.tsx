@@ -1,7 +1,8 @@
 import {
     createBrowserRouter,
     RouterProvider,
-    Outlet
+    Outlet,
+    useNavigate
 } from "react-router-dom";
 import { pdfjs } from 'react-pdf';
 import AgentsPage from "./pages/AgentsPage/index.tsx";
@@ -16,6 +17,8 @@ import { TestPage } from "./pages/TestPage.tsx";
 import PDFViewer from "./pages/PDFViewer/index.tsx";
 import ChatPage from "./pages/ChatPage/index.tsx";
 import { ContextPage } from "./pages/ContextPage/index.tsx";
+import { setNavigateRef } from "./navigate.ts";
+import WorkflowPage from "./pages/WorkflowPage/index.tsx";
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
     'pdfjs-dist/build/pdf.worker.min.mjs',
@@ -23,9 +26,12 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   ).toString();
   
 function Layout() {
+    const navigate = useNavigate();
+    setNavigateRef(navigate);
+
     return (
         <Box>
-            <Header />
+            {/* <Header /> */}
             <Outlet />
         </Box>
     );
@@ -71,6 +77,10 @@ const router = createBrowserRouter([
                 path: '/projects/:projectId/contexts/:contextId',
                 element: <ContextPage />
             },
+            {
+                path: '/wf',
+                element: <WorkflowPage />
+            }
         ]
     }
 ]);

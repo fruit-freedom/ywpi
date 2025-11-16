@@ -1,7 +1,7 @@
-import { ForwardedRef, forwardRef, RefObject, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { ForwardedRef, forwardRef, RefObject, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { Box, Button, Divider, Menu, MenuItem, Paper, Stack, Typography } from "@mui/material";
 
-import {$applyNodeReplacement, $createRangeSelection, $getNodeByKey, $getRoot, $getSelection, $setSelection, EditorConfig, LexicalEditor, LexicalNode, LineBreakNode, ParagraphNode, SerializedEditor, SerializedEditorState, SerializedTextNode, TextNode} from 'lexical';
+import {$getNodeByKey, $getRoot, $getSelection, EditorConfig, LexicalEditor, LexicalNode, ParagraphNode, SerializedEditorState, TextNode} from 'lexical';
 import {AutoFocusPlugin} from '@lexical/react/LexicalAutoFocusPlugin';
 import {LexicalComposer} from '@lexical/react/LexicalComposer';
 import {RichTextPlugin} from '@lexical/react/LexicalRichTextPlugin';
@@ -14,7 +14,7 @@ import {
   $convertToMarkdownString,
   TRANSFORMERS
 } from '@lexical/markdown';
-import { $createTextNode, $insertNodes, $createParagraphNode, $isRangeSelection, $parseSerializedNode } from 'lexical';
+import { $createTextNode, $isRangeSelection, $parseSerializedNode } from 'lexical';
 import {MarkdownShortcutPlugin} from '@lexical/react/LexicalMarkdownShortcutPlugin';
 import { AutoLinkNode, LinkNode } from "@lexical/link";
 import { ListNode, ListItemNode } from "@lexical/list";
@@ -26,7 +26,16 @@ import { TabIndentationPlugin } from '@lexical/react/LexicalTabIndentationPlugin
 
 import "./index.css"
 import { ContextProps } from "../../../pages/ContextPage/types";
-import { AgentStatus, useEvents } from "../../../hooks/useEvents";
+import { useEvents } from "../../../hooks/useEvents";
+import { v4 as uuidv4 } from 'uuid';
+import { useAgents } from "../../../store/store";
+import { getIngestedMethods_V2, ingestMethod, MethodWithAgent } from "./methodsFilters";
+import { ContextLinkNode, TRANSFORMS } from "./ContextLinkNode";
+import AgentTaskInputModal from "./AgentTaskInputModal";
+import ExecutionResultNode from "./ExecutionResultNode";
+import { AutocompleteNode, AutocompletePlugin, AutocompletePluginRef, CompletitionFnOutputs } from "./AutocompletePlugin";
+import UserPresets from "../../../shared/UserPresets";
+import { useUserPresets } from "../../../shared/UserPresets/store";
 
 
 interface Selection {
@@ -37,6 +46,8 @@ interface Selection {
 interface ContentAccessRef {
     getContent: () => string;
     setContent: (value: string) => void;
+    setTree: (value: any) => void;
+    insertNode: (serializedNode: any) => void;
     getTree: () => SerializedEditorState;
     applyUpdate: (update: any, path: number[]) => void;
     getSelectionText: () => string | undefined;
@@ -48,7 +59,6 @@ const getNode = (node: LexicalNode, path: number[]) => {
         const index = path[i];
         const children: LexicalNode[] = node.getChildren();
 
-        // console.log("|", i, index, children)
         if (index >= children.length)
             throw new Error("No children")
 
@@ -73,11 +83,33 @@ const getNodePath = (node: LexicalNode | null) => {
     return "tree.root." + path.reverse().map(e => `children.${e}`).join(".")
 }
 
+
 const ContetnAcessPlugin = forwardRef(function ContentAccessPlugin(props, ref: ForwardedRef<ContentAccessRef>) {
     const [editor] = useLexicalComposerContext();
 
     useImperativeHandle(ref, () => {
         return {
+            insertNode: (serializedNode: any) => {
+                let returnValue = null;
+                const setReturnValue = (v: any) => returnValue = v;
+
+                editor.update(() => {
+                    const node = $parseSerializedNode(serializedNode);
+                    // Execution result node
+                    const selection = $getSelection();
+                    if ($isRangeSelection(selection)) {
+                        const anchor = $getNodeByKey(selection.anchor.key);
+                        if (anchor?.getType() != "paragraph") {
+                            const insertedNode = anchor?.insertAfter(node);
+                            setReturnValue(insertedNode)
+                        }
+                        else {
+                            anchor?.append(node);
+                        }
+                    }
+
+                })
+            },
             getContent: () => {
                 const content = editor.read(() => {
                     return $convertToMarkdownString(TRANSFORMERS);
@@ -86,7 +118,12 @@ const ContetnAcessPlugin = forwardRef(function ContentAccessPlugin(props, ref: F
             },
             getTree: () => {
                 return editor.read(() => {
-                    // return editor.toJSON();
+                    // const selection = $getSelection();
+                    // console.log("selection", selection);
+                    // if (selection) {
+                    //     const anchor = $getNodeByKey(selection.anchor.key);
+                    //     console.log(anchor?.getParent()?.getTextContent())
+                    // }
                     return editor.getEditorState().toJSON();
                 });
             },
@@ -97,22 +134,31 @@ const ContetnAcessPlugin = forwardRef(function ContentAccessPlugin(props, ref: F
                     $convertFromMarkdownString(value, TRANSFORMERS);
                 });
             },
+            setTree: (value: any) => {
+                editor.update(() => {
+                    const state = editor.parseEditorState(value);
+                    editor.setEditorState(state);
+                });
+            },
             applyUpdate: (update: any, path: number[]) => {
                 console.log("Apply update ...", update, path)
                 editor.update(() => {
                     const root = $getRoot();
-                    const targetNode = getNode(root, path);
-
                     const node = $parseSerializedNode(update);
-                    targetNode.insertAfter(node);
-                    // root.append(node);
+
+                    if (path.length > 0) {
+                        const targetNode = getNode(root, path);
+                        targetNode.insertAfter(node);
+                    }
+                    else {
+                        root.append(node);
+                    }
                 })
             },
             getSelectionText: () => {
                 return editor.read(() => {
                     const selection = $getSelection();
                     if (selection) {
-                        console.log(selection.getNodes(), selection.getNodes().map(node => getNodePath(node)))
                         const selectedText = selection.getTextContent();
                         return selectedText;
                     }
@@ -122,7 +168,9 @@ const ContetnAcessPlugin = forwardRef(function ContentAccessPlugin(props, ref: F
                 return editor.read(() => {
                     const selection = $getSelection();
                     if (selection) {
-                        console.log(selection.getNodes(), selection.getNodes().map(node => getNodePath(node)))
+                        // console.log(selection.getNodes(), selection.getNodes().map(node => getNodePath(node)))
+
+                        const anchorNode = $getNodeByKey(selection.anchor.key);
 
                         const nodes = selection.getNodes().reduce((acc: any, cur: LexicalNode) => {
                             acc[getNodePath(cur)] = cur.exportJSON();
@@ -130,10 +178,13 @@ const ContetnAcessPlugin = forwardRef(function ContentAccessPlugin(props, ref: F
                         }, {});
                         const text = selection.getTextContent();
 
-                        console.log({ nodes, text });
                         return {
                             nodes,
-                            text
+                            text,
+                            anchor: {
+                                ...selection.anchor,
+                                key: getNodePath(anchorNode),
+                            }
                         };
                     }
                 });
@@ -141,15 +192,8 @@ const ContetnAcessPlugin = forwardRef(function ContentAccessPlugin(props, ref: F
         }
     }, [editor]);
 
-    // editor.registerUpdateListener(({ editorState }) => {
-    //     console.log(editorState.toJSON());
-    // });
-
     return null;
 })
-
-
-
 
 const InsertPlugin = () => {
     const [editor] = useLexicalComposerContext();
@@ -160,51 +204,6 @@ const InsertPlugin = () => {
         const onKeyDown = (e: any) => {
             if ((e.ctrlKey || e.metaKey) && e.keyCode === 83) { // Ctrl + S
                 e.preventDefault();
-
-                editor.update(() => {
-                    // const root = $getRoot();
-                    // const nodes = root.getChildren();
-
-                    // const childs = nodes[0].getChildren() as LexicalNode[];
-                    // // root.insertAfter()
-
-                    // // console.log("Node", getNode(root, [2, 0]));
-                    // // const node = getNode(root, [2, 0]);
-                    // // node.insertAfter($createTextNode("Hi"));
-
-                    // const n = $parseSerializedNode({
-                    //     "children": [
-                    //         {
-                    //             "detail": 0,
-                    //             "format": 0,
-                    //             "mode": "normal",
-                    //             "style": "",
-                    //             "text": "Необходимо дополнить сайд бар новой вкладкой - Поиск",
-                    //             "type": "text",
-                    //             "version": 1
-                    //         }
-                    //     ],
-                    //     "direction": null,
-                    //     "format": "",
-                    //     "indent": 0,
-                    //     "type": "paragraph",
-                    //     "version": 1,
-                    //     "textFormat": 0,
-                    //     "textStyle": ""
-                    // });
-                    // root.append(n);
-
-
-                    // const paragraph = $createParagraphNode();
-                    // paragraph.append($createTextNode("Ctrl+S"));
-                    // root.append(paragraph);
-                });
-                // editor.update(() => {
-                //     const p = $createParagraphNode();
-                //     p.append($createTextNode("**Agent** response"))
-                //     $insertNodes([p]);
-                // });
-
             }
         }
         document.addEventListener("keydown", onKeyDown);
@@ -219,26 +218,6 @@ const InsertPlugin = () => {
     }, []);
 
     useEffect(() => {
-        // return editor.registerUpdateListener(({editorState}) => {
-        //     console.log("STATE", editorState)
-        //     editor.read(() => {
-        //         const selection = $getSelection();
-        //         const nodes = selection?.getCachedNodes();
-
-        //         if ($isRangeSelection(selection) && nodes) {
-        //             // Get the node at the anchor of the selection (or any other desired node)
-        //             const existingNode = selection.anchor.getNode(); 
-        //             console.log("existingNode", existingNode)
-        //             // // Create the new node to insert
-        //             // const newNode = $createParagraphNode().append($createTextNode('This is a new paragraph.'));
-
-        //             // // Insert the new node after the existing node
-        //             // existingNode.insertAfter(newNode);
-        //         }
-        //     });
-        // });
-
-
         editor.registerNodeTransform(TextNode, textNode => {
             const content = textNode.getTextContent();
 
@@ -253,38 +232,25 @@ const InsertPlugin = () => {
                 textNode.setTextContent(before);
                 textNode.insertAfter(executionNode);
                 const next = $createTextNode(" ");
+                executionNode.insertAfter(new ExecutionResultNode("uuufufufu"))
                 executionNode.insertAfter(next);
                 next.selectNext()
-                // executionNode.selectNext()
-
-                // textNode.remove();
-
-
-                // textNode.replace(executionNode);
-
-
-                // const next = $createTextNode("")
-                // executionNode.insertAfter(next);
-                
-                // $setSelection(next.selectEnd());
-
-
-
-                // const selection = $getSelection();
-                // console.log($getNodeByKey(selection.anchor.key))
-
-                // textNode.insertBefore(executionNode);
-                // textNode.setTextContent("");
-                // textNode.replace(executionNode);
-
-                // executionNode.insertAfter(new LineBreakNode());
-                // textNode.setTextContent("ab");
             }
         })
 
-        return editor.registerMutationListener(ParagraphNode, (nodes, payload) => {
-            console.log(nodes, payload)
+        const removeTransform = editor.registerNodeTransform(TRANSFORMS[0].type, TRANSFORMS[0].fn);
+
+
+        /* If user input more than N symbols or paste 1 sec than remove old autocomplete and fetch new */
+
+        const removeMutationListener = editor.registerMutationListener(ParagraphNode, (nodes, payload) => {
+
         }, { skipInitialization: true })
+
+        return () => {
+            removeMutationListener();
+            removeTransform();
+        }
     }, [editor, ref]);
 
     return null;
@@ -294,48 +260,9 @@ interface EditorProps {
     defaultValue?: string;
     defaultTree?: any;
     ref?: RefObject<ContentAccessRef>;
+    completitionFn?: () => Promise<string>;
 }
 
-import { v4 as uuidv4 } from 'uuid';
-import { Markdown } from "../../../components/Markdown";
-import { useAgents } from "../../../store/store";
-import { executeMethodAsync } from "../../../api";
-import { getIngestedMethods_V2 } from "./methodsFilters";
-
-class ExtendedTextNode extends TextNode {
-    __uuid: string;
-
-    constructor(text: string, uuid: string, key?: string) {
-        super(text, key);
-        this.__uuid = uuid;
-        console.log("Creating", uuid)
-    }
-
-    static getType(): string {
-        return "text_uuid";
-    }
-
-    static clone(node: ExtendedTextNode): TextNode {
-        return new ExtendedTextNode(node.__text, node.__uuid, node.__key);
-    }
-
-    static importDOM(): DOMConversionMap | null {
-        return TextNode.importDOM();
-    }
-
-    static importJSON(serializedNode: SerializedTextNode): TextNode {
-        return new ExtendedTextNode(serializedNode.text, serializedNode.uuid);
-    }
-
-    exportJSON(): SerializedTextNode {
-        return {
-            ...super.exportJSON(),
-            uuid: this.__uuid
-        }
-    }
-
-    // Override methods like isBackward, etc.
-}
 
 class ExecutionNode extends TextNode {
     __uuid: string;
@@ -343,7 +270,6 @@ class ExecutionNode extends TextNode {
     constructor(text: string, uuid: string, key?: string) {
         super(text, key);
         this.__uuid = uuid;
-        console.log("Creating execution node", uuid)
     }
 
     static getType(): string {
@@ -393,56 +319,8 @@ class ExecutionNode extends TextNode {
     // Override methods like isBackward, etc.
 }
 
-/*
-Implement document page @task
 
-*/
-
-class ExtendedParagraphNode extends ParagraphNode {
-    __uuid: string;
-
-    constructor(uuid: string, key?: string) {
-        super(key);
-        this.__uuid = uuid;
-        console.log("Creating p", uuid)
-    }
-
-    static getType(): string {
-        return "paragraph-uuid";
-    }
-
-    static clone(node: ExtendedParagraphNode): ExtendedParagraphNode {
-        return new ExtendedParagraphNode(node.__uuid, node.__key);
-    }
-
-    static importDOM(): any {
-        return ParagraphNode.importDOM();
-    }
-
-    static importJSON(serializedNode: any): ExtendedParagraphNode {
-        return new ExtendedParagraphNode(serializedNode.uuid);
-    }
-
-    createDOM(config: EditorConfig): HTMLElement {
-        const d = super.createDOM(config)
-        d.style.backgroundColor = '#fafafa';
-        d.style.borderRadius = "4px";
-        d.style.padding = "4px";
-        d.style.margin = "8px";
-        return d;
-    }
-    
-    exportJSON(): any {
-        return {
-            ...super.exportJSON(),
-            uuid: this.__uuid
-        }
-    }
-
-    // Override methods like isBackward, etc.
-}
-
-const Editor = forwardRef(function Editor(props: EditorProps, ref: ForwardedRef<ContentAccessRef>) {
+const Editor = forwardRef(function Editor(props: EditorProps, ref: ForwardedRef<ContentAccessRef & AutocompletePluginRef>) {
     const initialConfig = {
         namespace: 'MyEditor',
         theme: {
@@ -451,18 +329,6 @@ const Editor = forwardRef(function Editor(props: EditorProps, ref: ForwardedRef<
         },
         onError: console.error,
         nodes: [
-            ExtendedTextNode,
-            // {
-            //     replace: TextNode, // The default node to replace
-            //     with: (node: TextNode) => new ExtendedTextNode(node.__text, uuidv4()), // How to create your custom node instance
-            //     withKlass: ExtendedTextNode, // The custom class to use
-            // },
-            // ExtendedParagraphNode,
-            // {
-            //     replace: ParagraphNode, // The default node to replace
-            //     with: (node: ParagraphNode) => new ExtendedParagraphNode(uuidv4()), // How to create your custom node instance
-            //     withKlass: ExtendedParagraphNode, // The custom class to use
-            // },
             LinkNode,
             AutoLinkNode,
             ListNode,
@@ -470,11 +336,13 @@ const Editor = forwardRef(function Editor(props: EditorProps, ref: ForwardedRef<
             TableNode,
             TableCellNode,
             TableRowNode,
-            HorizontalRuleNode,
             CodeNode,
             HeadingNode,
             QuoteNode,
-            ExecutionNode
+            ExecutionNode,
+            ContextLinkNode,
+            ExecutionResultNode,
+            AutocompleteNode,
         ],
         editorState: (editor: LexicalEditor) => {
             if (props.defaultTree) {
@@ -489,9 +357,17 @@ const Editor = forwardRef(function Editor(props: EditorProps, ref: ForwardedRef<
     };
 
     const contentRef = useRef<ContentAccessRef>(null);
-    useImperativeHandle(ref, () => contentRef.current, [contentRef]);
+    const autocompleteRef = useRef<AutocompletePluginRef>(null);
+    useImperativeHandle(
+        ref,
+        () => ({...contentRef.current, ...autocompleteRef.current}),
+        [contentRef, autocompleteRef]
+    );
 
-
+    useEffect(() => {
+        if (contentRef && props.defaultTree)
+            contentRef.current?.setTree(props.defaultTree);
+    }, [props.defaultTree]);
 
     return (
         <LexicalComposer initialConfig={initialConfig}>
@@ -509,11 +385,19 @@ const Editor = forwardRef(function Editor(props: EditorProps, ref: ForwardedRef<
             <InsertPlugin />
             <MarkdownShortcutPlugin transformers={TRANSFORMERS} />
             <TabIndentationPlugin />
+            {
+                props.completitionFn ?
+                <AutocompletePlugin
+                    ref={autocompleteRef}
+                    completitionFn={props.completitionFn}
+                />
+                : null
+            }
         </LexicalComposer>
     );
 })
 
-const EditableMarkdown = forwardRef(function Editor(props: EditorProps, ref: ForwardedRef<ContentAccessRef>) {
+export const EditableMarkdown = forwardRef(function Editor(props: EditorProps, ref: ForwardedRef<ContentAccessRef>) {
     const initialConfig = {
         namespace: 'MyEditor',
         theme: {
@@ -522,7 +406,6 @@ const EditableMarkdown = forwardRef(function Editor(props: EditorProps, ref: For
         },
         onError: console.error,
         nodes: [
-            ExtendedTextNode,
             LinkNode,
             AutoLinkNode,
             ListNode,
@@ -530,11 +413,11 @@ const EditableMarkdown = forwardRef(function Editor(props: EditorProps, ref: For
             TableNode,
             TableCellNode,
             TableRowNode,
-            HorizontalRuleNode,
             CodeNode,
             HeadingNode,
             QuoteNode,
-            ExecutionNode
+            ExecutionNode,
+            ExecutionResultNode
         ],
         editorState: (editor: LexicalEditor) => {
             if (props.defaultTree) {
@@ -558,16 +441,6 @@ const EditableMarkdown = forwardRef(function Editor(props: EditorProps, ref: For
             if ((e.ctrlKey || e.metaKey) && e.keyCode === 83) { // Ctrl + S
                 e.preventDefault();
                 e.stopPropagation();
-
-                // applyContextUpdate({
-                //     $set: {
-                //         content: editorRef.current?.getContent(),
-                //         tree: editorRef.current?.getTree()
-                //     }
-                // })
-
-                // console.log(editorRef.current?.getTree())
-                console.log("Save related")
             }
         }
 
@@ -605,30 +478,8 @@ interface State {
     }[];
 }
 
-const mockEvent = {
-    "children": [
-        {
-            "detail": 0,
-            "format": 0,
-            "mode": "normal",
-            "style": "",
-            "text": "Agent response",
-            "type": "text",
-            "version": 1
-        }
-    ],
-    "direction": null,
-    "format": "",
-    "indent": 0,
-    "type": "paragraph",
-    "version": 1,
-    "textFormat": 0,
-    "textStyle": ""
-}
-
-
 export const MarkdownContext = ({ data, applyContextUpdate, contextId, forceContextRefetch }: ContextProps<State>) => {
-    const editorRef = useRef<ContentAccessRef>(null);
+    const editorRef = useRef<ContentAccessRef & AutocompletePluginRef>(null);
 
     const { } = useEvents({
         onEvent: (e) => {
@@ -637,6 +488,7 @@ export const MarkdownContext = ({ data, applyContextUpdate, contextId, forceCont
                     const outputs = e.data.outputs;
                     if (outputs.type === "ContextUpdate") {
                         const $push = outputs.data.update.$push;
+                        console.log("$push", $push);
                         Object.entries($push).forEach((entry) => {
                             const [key, value] = entry;
                             if (key.startsWith("tree.root")) {
@@ -651,8 +503,12 @@ export const MarkdownContext = ({ data, applyContextUpdate, contextId, forceCont
                                     path.push(value.$position - 1);
                                     update = value.$each[0];
                                 }
-                                else
-                                    throw new Error("not implemented");
+                                else {
+                                    console.log("Not impl")
+                                    update = value;
+
+                                    // throw new Error("not implemented");
+                                }
 
                                 editorRef.current?.applyUpdate(update, path);
                             }
@@ -668,7 +524,7 @@ export const MarkdownContext = ({ data, applyContextUpdate, contextId, forceCont
 
     const { agents } = useAgents();
 
-    const [env, setEnv] = useState(() => new Map());
+    const [env, setEnv] = useState<Map<string, any>>(() => new Map());
 
     const [contextMenu, setContextMenu] = useState<{ mouseX: number; mouseY: number; } | null>(null);
     const handleContextMenu = (event: React.MouseEvent) => {
@@ -685,10 +541,20 @@ export const MarkdownContext = ({ data, applyContextUpdate, contextId, forceCont
                 // With this behavior we prevent contextmenu from the backdrop to re-locale existing context menus.
                 null,
         );
-        setEnv(new Map([
+
+        setEnv(new Map<string, any>([
             ["Selection", editorRef.current?.getSelection()],
             ["ContextId", {
                 id: contextId
+            }],
+            ["Context", {
+                id: contextId,
+                tp: "Markdown",
+                data: {
+                    tree: editorRef.current?.getTree(),
+                    content: editorRef.current?.getContent()
+                },
+                subscribtions: []
             }]
         ]));
 
@@ -707,6 +573,8 @@ export const MarkdownContext = ({ data, applyContextUpdate, contextId, forceCont
     };
 
     const actionsRef = useRef(null);
+
+    const { completitionMethod, agentTaskMethod } = useUserPresets();
 
     useEffect(() => {
         const onKeydown = (e: any) => {
@@ -728,12 +596,98 @@ export const MarkdownContext = ({ data, applyContextUpdate, contextId, forceCont
             else if ((e.ctrlKey || e.metaKey) && e.keyCode === 79) { // Ctrl + O
                 e.preventDefault();
             }
+            else if ((e.ctrlKey || e.metaKey) && e.keyCode === 70) { // Ctrl + F
+                e.preventDefault();
+                setAgentTaskModelOpen(prev => !prev);
+            }
         }
         document.addEventListener("keydown", onKeydown);
 
         return () => document.removeEventListener("keydown", onKeydown);
-    }, [actionsRef]);
+    }, [actionsRef, editorRef]);
 
+    const completitionFn = useCallback<() => Promise<CompletitionFnOutputs>>(() => {
+        const localEnv = new Map<string, any>([
+            ["Selection", editorRef.current?.getSelection()],
+            ["ContextId", {
+                id: contextId
+            }],
+            ["Context", {
+                id: contextId,
+                tp: "Markdown",
+                data: {
+                    tree: editorRef.current?.getTree(),
+                    content: editorRef.current?.getContent()
+                },
+                subscribtions: []
+            }]
+        ]);
+        
+        return new Promise((resolve, reject) => {
+            if (!completitionMethod) {
+                reject("autocomplete method not specified");
+                return;
+            }
+
+            const ingestedMethod = ingestMethod(completitionMethod, localEnv);
+            if (ingestedMethod) {
+                ingestedMethod.method()
+                .then((outputs: CompletitionFnOutputs) => {
+                    if (Object.keys(outputs).length > 0)
+                        if (typeof outputs.completition == "string")
+                            resolve(outputs);
+
+                    reject("outputs has not got text node");
+                })
+            } else {
+                reject("ingested method can not be created");
+            }
+        });
+
+    }, [completitionMethod]);
+
+    const agentTaskFn = useCallback<() => Promise<CompletitionFnOutputs>>(() => {
+        const localEnv = new Map<string, any>([
+            ["Selection", editorRef.current?.getSelection()],
+            ["ContextId", {
+                id: contextId
+            }],
+            ["Context", {
+                id: contextId,
+                tp: "Markdown",
+                data: {
+                    tree: editorRef.current?.getTree(),
+                    content: editorRef.current?.getContent()
+                },
+                subscribtions: []
+            }]
+        ]);
+        
+        return new Promise((resolve, reject) => {
+            if (!agentTaskMethod) {
+                reject("agentTaskMethod method not specified");
+                return;
+            }
+
+            const ingestedMethod = ingestMethod(agentTaskMethod, localEnv);
+            if (ingestedMethod) {
+                ingestedMethod.method()
+                .then((outputs) => {
+                    if (Object.keys(outputs).length > 0)
+                        if (typeof outputs.result == "string")
+                            resolve(outputs);
+                    console.log(outputs);
+
+                    reject("outputs has not got text node");
+                })
+            } else {
+                reject("ingested method can not be created");
+            }
+        });
+
+    }, [completitionMethod]);
+
+    const [agentTaskModelOpen, setAgentTaskModelOpen] = useState(false);
 
     return (
         <Stack gap={1} padding={1} direction={'row'} justifyContent={'space-between'}>
@@ -743,6 +697,7 @@ export const MarkdownContext = ({ data, applyContextUpdate, contextId, forceCont
                         ref={editorRef}
                         defaultValue={data.content}
                         defaultTree={data.tree}
+                        completitionFn={completitionMethod ? completitionFn : undefined}
                     />
                 </Box>
                 <Menu
@@ -756,34 +711,11 @@ export const MarkdownContext = ({ data, applyContextUpdate, contextId, forceCont
                     }
                 >
                     {
-                        // agents
-                        // .filter(e => e.status === AgentStatus.Connected)
-                        // .reduce((acc: any[], cur) => {
-                        //     const methods = cur.methods.filter(e => e.inputs.length === 2 && e.inputs[1]?.type.name === "str")
-                        //     acc.push(...methods.map(e => ({
-                        //         agentId: cur.id,
-                        //         methodName: e.name,
-                        //         inputName: e.inputs.find(e => e.type.name === "str" && e.name !== "context_id")?.name
-                        //     })));
-                        //     return acc;
-                        // }, [])
                         getIngestedMethods_V2(agents, env).map(e => (
                             <MenuItem
                                 key={e.name}
                                 onClick={() => {
                                     e.method();
-                                    // getIngestedMethods_V2(agents, new Map<string, any>([
-                                    //     ["ContextId", contextId],
-                                    //     ["Selection", {}]
-                                    // ]));
-
-                                    // const text = editorRef.current?.getSelectionText();
-                                    // if (text) {
-                                    //     executeMethodAsync(e.agentId, e.methodName, {
-                                    //         [e.inputName]: text,
-                                    //         context_id: contextId
-                                    //     })
-                                    // }
                                     setContextMenu(null);
                                 }}
                             >
@@ -793,26 +725,59 @@ export const MarkdownContext = ({ data, applyContextUpdate, contextId, forceCont
                     }
                 </Menu>
             </div>
-            <Stack width={'500px'} gap={4} borderLeft={'1px solid lightgrey'} padding={1}>
-                {
-                    data.actions?.map((e, idx) => (
-                        <Paper key={e.id} sx={{ padding: 1 }} elevation={4}>
-                            <Stack gap={1}>
-                                {/* <Markdown>{e.content}</Markdown> */}
-                                <EditableMarkdown defaultValue={e.content}/>
-                                {/* <Divider />
-                                <Typography variant="caption">{e.id}</Typography>
-                                <Button
-                                    size="small"
-                                    variant="contained"
-                                >
-                                    Apply
-                                </Button> */}
-                            </Stack>
-                        </Paper>
-                    ))
-                }
-            </Stack>
+            {/* <Stack width={'500px'} gap={4} borderLeft={'1px solid lightgrey'} padding={1}>
+                <Stack gap={4}>
+                    <Typography fontWeight={700}>Actions</Typography>
+                    {
+                        data.actions?.map((e, idx) => (
+                            <Paper key={e.id} sx={{ padding: 1 }} elevation={4}>
+                                <Stack gap={1}>
+                                    <EditableMarkdown defaultValue={e.content}/>
+                                </Stack>
+                            </Paper>
+                        ))
+                    }
+                </Stack>
+                <Divider />
+                <Stack>
+                    <Typography fontWeight={700}>Hotkeys</Typography>
+                    <Stack gap={2} direction={"row"}>
+                        <Typography>Autocomplete (require method)</Typography>
+                        <Typography fontWeight={700} sx={{ color: "lightgrey" }}>Ctrl + Space</Typography>
+                    </Stack>
+                    <Stack gap={2} direction={"row"}>
+                        <Typography>Save</Typography>
+                        <Typography fontWeight={700} sx={{ color: "lightgrey" }}>Ctrl + S</Typography>
+                    </Stack>
+                </Stack>
+            </Stack> */}
+            <AgentTaskInputModal
+                open={agentTaskModelOpen}
+                onClose={(value) => {
+                    setAgentTaskModelOpen(false);
+                    if (value) {
+                        editorRef.current?.insertNode({
+                            type: "execution_result",
+                            uuid: "Generating...",
+                            children: [
+                                {
+                                    type: "text",
+                                    text: "result"
+                                }
+                            ]
+                        })
+
+                        if (agentTaskMethod) {
+                            agentTaskFn()
+                        }
+                        // editorRef.current?.insertNode({
+                        //     type: "text",
+                        //     text: value
+                        // });
+                    }
+                }}
+            />
+            <UserPresets />
         </Stack>
     )
 };

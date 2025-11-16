@@ -19,7 +19,7 @@ interface ItemProps {
     value: string;
 }
 
-const Item = ({ active, value }: ItemProps) => {
+export const Item = ({ active, value }: ItemProps) => {
     return (
         <Box
             bgcolor={active ? 'lightgrey' : 'white'}

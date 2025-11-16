@@ -3,7 +3,7 @@
 
 
 interface ExecutionMenuProps {
-    onClick
+    
 }
 
 

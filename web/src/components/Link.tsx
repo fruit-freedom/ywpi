@@ -4,5 +4,6 @@ import { Link } from "react-router-dom";
 
 
 export default styled(Link)({
-    textDecoration: 'none'
+    textDecoration: 'none',
+    color: '#000'
 })

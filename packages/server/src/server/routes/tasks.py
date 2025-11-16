@@ -1,31 +1,19 @@
-import json
 import typing as t
 
 import fastapi
 import pydantic
-import grpc
-from bson import ObjectId
 
-from ..db import agents_collection, tasks_collection
-# from app import hub_pb2
-# from app import hub_pb2_grpc
-# from app import models
+from server.db import agents_collection, tasks_collection
+from server import models
+from server.hub_service import hub
 
-from .. import hub_pb2
-from .. import hub_pb2_grpc
-from .. import models
-from .objects import create_object
-from server.settings import HUB_CONNECTION_STRING
 
-hub_stub: hub_pb2_grpc.HubStub = None
+async def lifespan(app): 
+    yield
 
-async def lifespan(app):
-    global hub_stub
-    async with grpc.aio.insecure_channel(HUB_CONNECTION_STRING) as channel:
-        hub_stub = hub_pb2_grpc.HubStub(channel)
-        yield
 
 router = fastapi.APIRouter(lifespan=lifespan)
+
 
 @router.get('/api/tasks', tags=['tasks'])
 async def get_tasks(agent_id: str = None) -> list[models.Task]:
@@ -53,21 +41,17 @@ class CreateTaskBody(pydantic.BaseModel):
     inputs: dict
     borrowed_fields: t.Optional[dict[str, BorrowebField]] = None
     require_context: t.Optional[bool] = None
+    silent: bool = False
 
 
 @router.post('/api/tasks', tags=['tasks'])
 async def create_task(body: CreateTaskBody):
     """Run task async"""
-    response: hub_pb2.PushTaskResponse = await hub_stub.PushTask(
-        hub_pb2.PushTaskRequest(
-            agent_id=body.agent_id,
-            method=body.method,
-            params=json.dumps(body.inputs),
-        )
+    task_id = await hub.execute_method_async(
+        agent_id=body.agent_id,
+        method_name=body.method,
+        inputs=body.inputs
     )
-
-    if response.HasField('error'):
-        raise fastapi.HTTPException(status_code=500, detail=response.error)
 
     # if body.require_context is not None:
     #     # TODO: Race condition!
@@ -82,46 +66,28 @@ async def create_task(body: CreateTaskBody):
 
     # TODO: Add borrowed fields verification
     if body.borrowed_fields is not None:
-        print(f'Upserting task {response.task_id}', {'borrowed_fields': body.borrowed_fields})
-        await tasks_collection.update_one({ '_id': response.task_id }, {
+        print(f'Upserting task {task_id}', {'borrowed_fields': body.borrowed_fields})
+        await tasks_collection.update_one({ '_id': task_id }, {
             '$set': {
                 'borrowed_fields': { k: v.model_dump(mode='json') for k, v in body.borrowed_fields.items() }
             }
         }, upsert=True)
 
     return {
-        'task_id': response.task_id
+        'task_id': task_id
     }
 
 
 @router.post('/api/run_task', tags=['tasks'])
 async def run_task_sync(body: CreateTaskBody):
-    # Run task sync
-    response: hub_pb2.RunTaskResponse = await hub_stub.RunTask(
-        hub_pb2.PushTaskRequest(
-            agent_id=body.agent_id,
-            method=body.method,
-            params=json.dumps(body.inputs),
-        )
+    print(body)
+    return await hub.execute_method(
+        agent_id=body.agent_id,
+        method_name=body.method,
+        inputs=body.inputs,
+        silent=body.silent
     )
 
-    if response.HasField('error'):
-        raise fastapi.HTTPException(status_code=500, detail=response.error)
-
-    return json.loads(response.outputs)
-
-
-{
-    "agent_id": "",
-    "method": "",
-    "inputs": {
-        "input_from_object": {
-            "object_id": "",
-            "path": "data.text"
-        },
-        "input_ordinary": "Some text from form"
-    }
-}
 
 
 # TODO: Get fields verification

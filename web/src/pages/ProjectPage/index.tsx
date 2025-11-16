@@ -12,7 +12,7 @@ import { BoardSidebar } from "./components/BoardSidebar";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { Object } from "../../api/object";
 import { Markdown } from "../../components/Markdown";
-import { ObjectCard } from "./components/ObjectCard";
+// import { ObjectCard } from "./components/ContextCard";
 import { ContextsList } from "./components/ContextsList";
 
 const buildSuitedTypeMethods = (agents: Agent[]): Map<string, MethodWithAgentId[]> => {
@@ -292,10 +292,10 @@ const ObjectsList = ({ projectId }: { projectId: string }) => {
                 {
                     objects?.map(e => (
                         <Paper key={e.id} sx={{ width: '32%', cursor: 'pointer' }} elevation={4}>
-                            <ObjectCard
+                            {/* <ObjectCard
                                 object={e}
                                 onLabelAddClick={() => setAddLabelState((prev) => ({...prev, modalOpen: true, objectId: e.id}))}
-                            />
+                            /> */}
                         </Paper>
                     ))
                 }

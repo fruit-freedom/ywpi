@@ -4,7 +4,7 @@
 }
 
 .editor-paragraph {
-    background-color: #fafafa;
+    /* background-color: #fafafa; */
     /* background-color: lightgrey; */
     border-radius: 4px;
     padding: 4px;
@@ -14,10 +14,40 @@
 .editor-code {
     /* background-color: #fafafa; */
     /* background-color: lightgrey; */
-    border: 1px solid #fafafa;
+    border: 1px solid lightgrey;
     border-radius: 4px;
     padding: 4px;
     margin: 8px;
     display: block;
     font-family: "Roboto", "Helvetica", "Arial", sans-serif;
+}
+
+
+
+/*  */
+
+.execution_node {
+    color: grey;
+    border-radius: 4px;
+    border: 1px solid grey;
+    padding: 6px 12px;
+    margin: 8px;
+}
+
+.execution_node-loader {
+    position: relative;
+}
+
+.execution_node-loader::after {
+    content: '...';
+    display: inline-block;
+    position: absolute;
+    animation: dots 1.5s steps(3, end) infinite;
+}
+
+@keyframes dots {
+    0% { content: ''; }
+    33.33% { content: '.'; }
+    66.66% { content: '..'; }
+    100% { content: '...'; }
 }

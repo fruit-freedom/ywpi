@@ -83,7 +83,6 @@ async def update_outputs_object(data: models.TaskUpdatedData):
                 }
             })
     except:
-        import traceback
         traceback.print_exc()
 
 
@@ -195,6 +194,7 @@ async def consume_events() -> None:
         # Creating a channel
         channel = await connection.channel()
         exchange = await channel.get_exchange(RQ_EXCHANGE_NAME)
+        # TODO: Add declare_exchange
 
         # Declaring queue (Queue MUST be durable for preventing events disappearing)
         queue = await channel.declare_queue('server.queue', durable=True)
@@ -212,7 +212,6 @@ async def consume_events() -> None:
                         for listener in SUBSCRIBERS.values():
                             listener.put_nowait(event.model_dump_json())
                 except Exception:
-                    import traceback
                     traceback.print_exc()
                     print('Processing error for message %r', message)
     except:

@@ -1,14 +1,14 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
-import { Context, Label } from "../../../api/types";
-import { Box, IconButton, MenuItem, Modal, Paper, Select, Stack, Typography } from "@mui/material";
-import { ObjectCard } from "./ObjectCard";
-import { Object } from "../../../api/object";
+import { Label } from "../../../api/types";
+import { Box, IconButton, MenuItem, Modal, Paper, Select, Stack, TextField, Typography } from "@mui/material";
 import { Button } from "../../../components/Button";
 import { useNavigate } from "react-router-dom";
 import DeleteIcon from '@mui/icons-material/Delete';
 import OpenInFullIcon from '@mui/icons-material/OpenInFull';
 import Link from "../../../components/Link";
+import { ContextCard } from "./ContextCard";
+import { Context } from "../../../api/context";
 
 interface CreateContextFormProps {
     open: boolean;
@@ -16,14 +16,15 @@ interface CreateContextFormProps {
     projectId: string;
 }
 
-const createContext = (options: { projectId: string, tp: string }) => {
+const createContext = (options: { projectId: string, tp: string, name: string }) => {
     return fetch(`/api/projects/${options.projectId}/contexts`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-            tp: options.tp
+            tp: options.tp,
+            name: options.name
         })
     })
     .then(e => e.json())
@@ -45,9 +46,14 @@ const CreateContextForm = ({ open, onClose, projectId }: CreateContextFormProps)
 
     const [type, setType] = useState("chat");
 
+    const [name, setName] = useState({
+        value: 'Untitled',
+        helperText: 'Write project name (e.g. Workspace)',
+        error: false,
+    });
+
     const createContextAndClose = () => {
-        createContextMutation.mutate({ projectId, tp: type })
-        // onClose();
+        createContextMutation.mutate({ projectId, tp: type, name: name.value });
     };
 
     return (
@@ -70,21 +76,14 @@ const CreateContextForm = ({ open, onClose, projectId }: CreateContextFormProps)
                         <MenuItem value={"chat"}>Chat</MenuItem>
                         <MenuItem value={"markdown"}>Markdown</MenuItem>
                     </Select>
-                    {/* <TextField
+                    <TextField
                         size='small'
                         fullWidth
                         onChange={(e) => setName(prev => ({...prev, value: e.target.value}))}
                         label={'Name'}
                         {...name}
                     />
-                    <TextField
-                        size='small'
-                        fullWidth
-                        onChange={(e) => setLink(prev => ({...prev, value: e.target.value}))}
-                        label={'PDF Link'}
-                        {...link}
-                    />
-                    <Autocomplete
+                    {/* <Autocomplete
                         multiple
                         options={[]}
                         freeSolo
@@ -168,13 +167,13 @@ export const ContextsList = ({ projectId, projectName }: { projectId: string, pr
                 {
                     contexts?.map(e => (
                         <Box
-                            width={'32%'}
+                            width={'24%'}
                             key={e.id}
                         >
                             <Paper elevation={4}>
-                                <ObjectCard
+                                <ContextCard
                                     onClick={() => navigate(`/projects/${projectId}/contexts/${e.id}`)}
-                                    object={e as Object}
+                                    context={e}
                                     onLabelAddClick={() => setAddLabelState((prev) => ({...prev, modalOpen: true, objectId: e.id}))}
                                     additionalControls={
                                         <Stack direction={'row'} gap={'0.2rem'}>
@@ -182,8 +181,11 @@ export const ContextsList = ({ projectId, projectName }: { projectId: string, pr
                                                 size="small"
                                                 sx={{ width: "min-content" }}
                                                 onClick={
-                                                    () => deleteContext({ projectId, contextId: e.id })
-                                                    .then(() => queryClient.invalidateQueries(['projects', projectId, 'contexts', query]))
+                                                    (event) => {
+                                                        deleteContext({ projectId, contextId: e.id })
+                                                        .then(() => queryClient.invalidateQueries(['projects', projectId, 'contexts', query]))
+                                                        event.stopPropagation();
+                                                    }
                                                 }
                                             >
                                                 <DeleteIcon fontSize="small"/>

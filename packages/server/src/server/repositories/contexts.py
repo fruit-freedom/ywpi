@@ -27,6 +27,7 @@ class Context(pydantic.BaseModel):
     id: PyObjectId = pydantic.Field(alias='_id', serialization_alias='id', default=None)
     project_id: t.Optional[PyObjectId] = None
     labels: t.Optional[list[Label]] = None
+    name: t.Optional[str] = None
     subscribtions: list[Subscribtion] = []
     tp: str
     data: dict

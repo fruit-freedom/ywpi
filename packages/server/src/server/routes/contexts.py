@@ -26,6 +26,7 @@ async def create_context(
     project_id: str,
     tp: t.Annotated[str, fastapi.Body()],
     data: t.Annotated[dict, fastapi.Body()] = {},
+    name: t.Annotated[t.Optional[str], fastapi.Body()] = None,
     labels: t.Annotated[t.Optional[list[Label]], fastapi.Body()] = [],
 ) -> Context:
     print('Creating context', tp, data, project_id, labels)
@@ -35,6 +36,7 @@ async def create_context(
         'data': data,
         'project_id': ObjectId(project_id),
         'labels': [l.model_dump(mode='json') for l in labels],
+        "name": name
     })
 
     return Context.model_validate(await contexts_collection.find_one({ '_id': result.inserted_id }))
@@ -146,7 +148,7 @@ async def update_context(
             for sub in updated_context.subscribtions:
                 try:
                     # Arg should be ctx
-                    task_id = await hub.execute_method(
+                    task_id = await hub.execute_method_async(
                         sub.agent_id,
                         sub.method_name,
                         { "ctx": updated_context.model_dump(mode='json') }

@@ -1,10 +1,11 @@
-export const executeMethod = async (agentId: string, methodName: string, inputs: any) => {
+export const executeMethod = async (agentId: string, methodName: string, inputs: any, silent: boolean = false) => {
     const response = await fetch('/api/run_task', {
         method: 'POST',
         body: JSON.stringify({
             agent_id: agentId,
             method: methodName,
-            inputs
+            inputs,
+            silent
         }),
         headers: { 'Content-Type': 'application/json' }
     });

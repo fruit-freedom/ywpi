@@ -47,17 +47,3 @@ export interface Task {
         [key: string]: any
     };
 }
-
-interface Subscribtion {
-    agent_id: string;
-    method_name: string;
-}
-
-export interface Context {
-    id: string;
-    project_id?: string;
-    labels?: Label[];
-    subscribtions: Subscribtion[];
-    tp: string;
-    data: any;
-}

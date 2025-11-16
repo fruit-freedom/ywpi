@@ -40,7 +40,7 @@ const CreateProjectForm = ({ open, onClose }: CreateProjectFormProps) => {
 
     const [name, setName] = useState({
         value: '',
-        helperText: 'Write project name (e.g. Workspace)',
+        helperText: 'Write context name (e.g. Workspace)',
         error: false,
     });
 

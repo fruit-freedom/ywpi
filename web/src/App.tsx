@@ -105,6 +105,15 @@ const theme = createTheme({
                 },
             },
         },
+        MuiPaper: {
+            defaultProps: {
+                style: {
+                    boxShadow: "none",
+                    border: "1px solid #d4d4d4",
+                    borderRadius: "7px"
+                }
+            }
+        }
     },
 });
 

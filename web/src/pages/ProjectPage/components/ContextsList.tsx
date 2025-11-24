@@ -8,7 +8,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import OpenInFullIcon from '@mui/icons-material/OpenInFull';
 import Link from "../../../components/Link";
 import { ContextCard } from "./ContextCard";
-import { Context } from "../../../api/context";
+import { Context, createContext, deleteContext, getContexts, updateContext } from "../../../api/context";
 
 interface CreateContextFormProps {
     open: boolean;
@@ -16,26 +16,7 @@ interface CreateContextFormProps {
     projectId: string;
 }
 
-const createContext = (options: { projectId: string, tp: string, name: string }) => {
-    return fetch(`/api/projects/${options.projectId}/contexts`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            tp: options.tp,
-            name: options.name
-        })
-    })
-    .then(e => e.json())
-}
 
-const deleteContext = (options: { projectId: string, contextId: string }) => {
-    return fetch(`/api/projects/${options.projectId}/contexts/${options.contextId}`, {
-        method: 'DELETE'
-    })
-    .then(e => e.json());
-}
 
 const CreateContextForm = ({ open, onClose, projectId }: CreateContextFormProps) => {
     const createContextMutation = useMutation({
@@ -83,20 +64,6 @@ const CreateContextForm = ({ open, onClose, projectId }: CreateContextFormProps)
                         label={'Name'}
                         {...name}
                     />
-                    {/* <Autocomplete
-                        multiple
-                        options={[]}
-                        freeSolo
-                        onChange={(event, val) => setLabels(prev => ({ ...prev, value: val.map(e => ({ name: e })) }))}
-                        renderInput={(params) => (
-                            <TextField
-                                {...params}
-                                variant="outlined"
-                                label="Labels"
-                                placeholder="Labels"
-                            />
-                        )}
-                    /> */}
                     <Button onClick={createContextAndClose}>
                         Create
                     </Button>
@@ -106,31 +73,12 @@ const CreateContextForm = ({ open, onClose, projectId }: CreateContextFormProps)
     );
 }
 
-const toParams = (query?: string) => {
-    return query ? `q=${query}` : '';
-}
-
-const updateContext = (options: { projectId: string, contextId: string, labels: Label[]}) => {
-    return fetch(`/api/projects/${options.projectId}/contexts/${options.contextId}`, {
-        method: 'PATCH',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            labels: options.labels
-        })
-    })
-    .then(e => e.json())
-}
-
 export const ContextsList = ({ projectId, projectName }: { projectId: string, projectName?: string }) => {
-    const [query, setQuery] = useState<string>();
-
     const queryClient = useQueryClient();
 
     const { data: contexts } = useQuery<Context[]>({
-        queryFn: () => fetch(`/api/projects/${projectId}/contexts?${toParams(query)}`).then(e => e.json()),
-        queryKey: ['projects', projectId, 'contexts', query],
+        queryFn: () => getContexts(projectId),
+        queryKey: ['projects', projectId, 'contexts'],
     });
 
     const [addLabelState, setAddLabelState] = useState<{ modalOpen: boolean, objectId?: string }>({
@@ -158,45 +106,41 @@ export const ContextsList = ({ projectId, projectName }: { projectId: string, pr
                 setAddLabelState(prev => ({...prev, modalOpen: false}));
             }}
             /> */}
-            {/* <FilterString onChange={e => setQuery(e)}/> */}
             <Stack direction={'row'} justifyContent={"space-between"} padding={"0 4rem"}>
                 <Typography variant="h4" fontWeight={700}>{projectName}</Typography>
                 <Button onClick={() => setCreateModelOpen(true)}>+ Create context</Button>
             </Stack>
-            <Stack gap={1} direction={'row'} flexWrap={'wrap'} justifyContent={'center'}>
+            <Stack gap={2} direction={'row'} flexWrap={'wrap'} justifyContent={'center'}>
                 {
                     contexts?.map(e => (
                         <Box
-                            width={'24%'}
+                            width={'60%'}
                             key={e.id}
                         >
-                            <Paper elevation={4}>
-                                <ContextCard
-                                    onClick={() => navigate(`/projects/${projectId}/contexts/${e.id}`)}
-                                    context={e}
-                                    onLabelAddClick={() => setAddLabelState((prev) => ({...prev, modalOpen: true, objectId: e.id}))}
-                                    additionalControls={
-                                        <Stack direction={'row'} gap={'0.2rem'}>
-                                            <IconButton
-                                                size="small"
-                                                sx={{ width: "min-content" }}
-                                                onClick={
-                                                    (event) => {
-                                                        deleteContext({ projectId, contextId: e.id })
-                                                        .then(() => queryClient.invalidateQueries(['projects', projectId, 'contexts', query]))
-                                                        event.stopPropagation();
-                                                    }
+                            <ContextCard
+                                context={e}
+                                onLabelAddClick={() => setAddLabelState((prev) => ({...prev, modalOpen: true, objectId: e.id}))}
+                                additionalControls={
+                                    <Stack direction={'row'} gap={'0.2rem'}>
+                                        <IconButton
+                                            size="small"
+                                            sx={{ width: "min-content" }}
+                                            onClick={
+                                                (event) => {
+                                                    deleteContext({ projectId, contextId: e.id })
+                                                    .then(() => queryClient.invalidateQueries(['projects', projectId, 'contexts', query]))
+                                                    event.stopPropagation();
                                                 }
-                                            >
-                                                <DeleteIcon fontSize="small"/>
-                                            </IconButton>
-                                            <Link to={`/projects/${projectId}/contexts/${e.id}`} sx={{ color: 'grey', padding: '5px' }}>
-                                                <OpenInFullIcon fontSize="small"/>
-                                            </Link>
-                                        </Stack>
-                                    }
-                                />
-                            </Paper>
+                                            }
+                                        >
+                                            <DeleteIcon fontSize="small"/>
+                                        </IconButton>
+                                        <Link to={`/projects/${projectId}/contexts/${e.id}`} sx={{ color: 'grey', padding: '5px' }}>
+                                            <OpenInFullIcon fontSize="small"/>
+                                        </Link>
+                                    </Stack>
+                                }
+                            />
                         </Box>
                     ))
                 }

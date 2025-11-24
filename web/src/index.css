@@ -30,3 +30,16 @@ code {
   width: 4px;
   height: 4px;
 }
+
+.hover {
+  cursor: pointer;
+}
+
+.hover:hover {
+  background-color: #f5f5f5;
+}
+
+
+:root {
+  --lightgrey-color: #f5f5f5;
+}

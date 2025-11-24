@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Button, Stack, TextField } from "@mui/material"
+import { Button, Paper, Stack, TextField, Typography } from "@mui/material"
 import {
     ReactFlow,
     addEdge,
@@ -14,148 +14,60 @@ import {
 
 
 import '@xyflow/react/dist/style.css';
-import { useBoard } from './store';
+import { useBoard, useDataNodes } from './store';
 import { nodeTypes } from './nodes';
+import { Agent, Method, useAgents } from '../../store/store';
+import { useEvents } from '../../hooks/useEvents';
+import { MethodCardSmall } from '../../shared/MethodCard';
 
 const initialNodes = [
     {
         id: '0',
         type: 'method',
         data: {
-            name: "custom_preprocessing",
+            name: "builtins/pdf-check",
             inputs: [
-                {
-                    name: "text"
-                }
             ],
             outputs: [
-                {
-                    name: "text"
-                }
             ],
         },
-        position: { x: -400, y: 100 },
+        position: { x: -900, y: -200 },
     },
     {
-        id: '2',
+        id: "2",
         type: "method",
         data: {
-            name: "RAG",
+            // name: "algorithms/summarization",
+            name: "test/summarization",
             inputs: [
-                {
-                    name: "text"
-                }
             ],
             outputs: [
                 {
-                    name: "documents"
+                    name: "summary"
                 }
             ]
         },
-        position: { x: 50, y: -100 },
+        position: { x: -400, y: 100 },
     },
     {
         id: '3',
         type: "method",
         data: {
-            name: "builtins/user_input",
+            // name: "algorithms/embeddings",
+            name: "test/embeddings",
             inputs: [
-            ],
-            outputs: [
                 {
                     name: "text"
                 }
+            ],
+            outputs: [
+                {
+                    name: "embedding"
+                }
             ]
         },
-        position: { x: -900, y: -200 },
+        position: { x: 50, y: -100 },
     },
-    // {
-    //     id: '2a',
-    //     data: { label: 'Web :: Implement web interface' },
-    //     position: { x: 10, y: 200 },
-    //     style: { backgroundColor: "#009966", border: "none" },
-    //     parentId: '2',
-    //     extent: "parent"
-    // },
-    // {
-    //     id: '2b',
-    //     data: { label: 'Backend :: Implement API interface with search engine' },
-    //     position: { x: 200, y: 50 },
-    //     style: { backgroundColor: "#eee600", border: "none" },
-    //     parentId: '2',
-    //     extent: "parent"
-    // },
-    // {
-    //     id: '2c',
-    //     data: { label: 'Design :: Draw search page' },
-    //     position: { x: 20, y: 50 },
-    //     style: { backgroundColor: "lightgrey", color: "grey", border: "none" },
-    //     parentId: '2',
-    //     extent: "parent"
-    // },
-    // {
-    //     id: '2e',
-    //     data: { label: 'Backend :: Improve search algorithm' },
-    //     position: { x: 200, y: 280 },
-    //     style: {  },
-    //     parentId: '2',
-    //     extent: "parent"
-    // },
-    // {
-    //     id: '1',
-    //     type: 'input',
-    //     data: { label: 'State :: AS IS on July' },
-    //     position: { x: 320, y: -300 },
-    // },
-    // {
-    //     id: '3',
-    //     data: { label: 'Web :: Add white theme' },
-    //     position: { x: 320, y: -200 },
-    // },
-    // { 
-    //     id: '34',
-    //     data: { label: 'State :: UI with white theme' },
-    //     position: { x: 320, y: -100 },
-    // },
-    // {
-    //     id: '4',
-    //     data: { label: 'UserStory :: Semantic field' },
-    //     position: { x: 320, y: 500 },
-    //     style: { width: 300, height: 300 },
-    // },
-    // {
-    //     id: '4a',
-    //     data: { label: 'Desing :: Add few control elements to field' },
-    //     position: { x: 15, y: 65 },
-    //     parentId: '4',
-    //     extent: 'parent',
-    // },
-    // {
-    //     id: '4b',
-    //     data: { label: 'Group B.A' },
-    //     position: { x: 15, y: 120 },
-    //     style: {
-    //         backgroundColor: 'rgba(255, 0, 255, 0.2)',
-    //         height: 150,
-    //         width: 270,
-    //     },
-    //     parentId: '4',
-    //     extent: 'parent',
-    // },
-    // {
-    //     id: '4b1',
-    //     data: { label: 'Node B.A.1' },
-    //     position: { x: 20, y: 40 },
-    //     parentId: '4b',
-    //     extent: 'parent',
-    // },
-    // {
-    //     id: '4b2',
-    //     data: { label: 'Node B.A.2' },
-    //     position: { x: 100, y: 100 },
-    //     parentId: '4b',
-    //     extent: 'parent',
-    // },
 ];
  
 const initialEdges = [
@@ -168,6 +80,17 @@ const initialEdges = [
     // { id: '2a-2c', source: '2c', target: '2a' },
     // { id: '2a-2e', source: '2b', target: '2e' },
 ];
+
+const executeWorkflow = (payload: any): Promise<any> => {
+    return fetch("/api/workflows/execute", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+    })
+    .then(e => e.json())
+}
 
 
 function generateBsonId() {
@@ -280,8 +203,27 @@ function generateId() {
     return result;
 }
 
+const agentsToMethods = (agents: Agent[]) => {
+    return agents.filter(a => a.status === "connected").flatMap(a => {
+        return a.methods.map(m => ({ agentId: a.id, ...m }))
+    })
+}
+
+interface NodeCreationData {
+    type: string;
+    data: {
+        [key: string]: any;
+    },
+    dragHandle?: string;
+}
+
 export default () => {
     const { nodes, setNodes, edges, setEdges, reactFlowInstance, setReactFlowInstance } = useBoard();
+
+    const { dataNodes, setOutputs } = useDataNodes();
+
+    const { agents } = useAgents();
+    useEvents();
 
     const onNodesChange = useCallback(
         (changes: any) => {
@@ -321,81 +263,77 @@ export default () => {
         });
     }, []);
     
-    const [text, setText] = useState('');
-
-    // const { data } = useQuery({
-    //     queryKey: ["board"],
-    //     queryFn: () => fetch("/api/board").then(e => e.json()),
-    // });
-
     useEffect(() => {
-        setNodes(initialNodes);
+        // setNodes(initialNodes);
         setEdges(initialEdges);
     }, []);
 
-    const addNode = () => {
-        setText('');
+    const handleRun = () => {
+        console.log(dataNodes)
 
-        setNodes(nds => {
-            const newNodes = [...nds, {
-                type: "issue",
-                id: generateId(),
-                data: {
-                    title: text
-                },
-                position: { x: 20, y: 40 },
-                // parentId: '4b',
-                // extent: 'parent',
-            }];
-            localStorage.setItem("DEPLOYER_NODES", JSON.stringify(newNodes));
-            return newNodes;
-        });
+        setOutputs({});
+        const nodes = reactFlowInstance?.getNodes().map(e => {
+            const updatedNode =  {...e};
+
+            if (e.type === "data") {
+                updatedNode.data.payload = dataNodes[e.id];
+            }
+
+            return updatedNode;
+        })
+
+        const data = {
+            edges: reactFlowInstance?.getEdges(),
+            nodes: nodes,
+        }
+
+        executeWorkflow(data)
+        .then(e => { console.log(e); setOutputs(e); })
+        .catch(e => console.error(e))
+
+        console.log("Data", data)
     }
 
+    const onDragStart = (event, nodeType) => {
+        // setType(nodeType);
+        event.dataTransfer.setData('text/plain', nodeType);
+        event.dataTransfer.effectAllowed = 'move';
+    };
 
-    // const onConnectEnd = useCallback(
-    //     (event, connectionState) => {
-    //         // when a connection is dropped on the pane it's not valid
-    //         if (!connectionState.isValid) {
-    //             // we need to remove the wrapper bounds, in order to get the correct position
-    //             const id = generateId();
-    //             const { clientX, clientY } =
-    //             'changedTouches' in event ? event.changedTouches[0] : event;
-    //             const newNode = {
-    //                 type: "issue",
-    //                 data: { title: `Web :: ${id}` },
-    //                 position: reactFlowInstance.screenToFlowPosition({
-    //                     x: clientX,
-    //                     y: clientY,
-    //                 }),
-    //             };
+    const onDragOver = useCallback((event) => {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = 'move';
+    }, []);
 
-    //             createNode(newNode)
-    //             .then(createdNode => {
-    //                 setNodes((nds) => {
-    //                     const newNodes = nds.concat(createdNode);
-    //                     return newNodes;
-    //                 });
-    //                 const newEdge = {
-    //                     id: id,
-    //                     source: connectionState.fromNode.id,
-    //                     sourceHandle: connectionState.fromHandle.id,
-    //                     target: createdNode.id,
-    //                     targetHandle: "a",
-    //                 }
-    //                 createEdge(newEdge);
+    const [nodeData, setNodeData] = useState<NodeCreationData>();
 
-    //                 setEdges((eds) => {
-    //                     const newEdges = eds.concat(newEdge);
-    //                     return newEdges;
-    //                 });
+    const onDrop = useCallback((event: any) => {
+            event.preventDefault();
+            // check if the dropped element is valid
+            if (!nodeData) {
+                return;
+            }
+        
+            const position = reactFlowInstance?.screenToFlowPosition({
+                x: event.clientX,
+                y: event.clientY,
+            });
+            const newNode = {
+                id: `${nodes.length + 1}`,
+                type: nodeData.type,
+                position,
+                dragHandle: nodeData.dragHandle,
+                // dragHandle: '.custom',
+                data: nodeData.data,
+            };
 
-    //             })
+            setNodes((nds) => nds.concat(newNode));
 
-    //         }
-    //     },
-    //     [reactFlowInstance],
-    // );
+            setNodeData(undefined);
+        },
+        [reactFlowInstance, nodeData, nodes],
+    );
+
 
     return (
         <Stack
@@ -404,20 +342,100 @@ export default () => {
             direction={'row'}
             bgcolor={"#fafafa"}
         >
-            <Stack width={"200px"} border={"1px solid grey"}>
-
+            <Stack width={"350px"} border={"1px solid grey"} padding={1} maxHeight={'80vh'} sx={{ overflowY: 'scroll' }}>
+                <Button onClick={handleRun}>Run</Button>
+                <Stack gap={1}>
+                    <div draggable onDragStart={() => {
+                            setNodeData({
+                                type: "data",
+                                data: {
+                                    name: 'Mamrkdown',
+                                    outputs: [
+                                        {
+                                            name: "content"
+                                        }
+                                    ]
+                                },
+                                dragHandle: ".custom",
+                            })
+                        }}
+                    >
+                        <Paper className='hover'>
+                            <Stack padding={1}>
+                                <Typography>Data node</Typography>
+                                <Typography sx={{ color: 'grey' }} variant='body2'>
+                                    Data node allow to add content to algroithms
+                                </Typography>
+                            </Stack>
+                        </Paper>
+                    </div>
+                    <div draggable onDragStart={() => {
+                            setNodeData({
+                                type: "agentTask",
+                                data: {
+                                    name: 'None',
+                                    outputs: [
+                                        {
+                                            name: "inputs"
+                                        }
+                                    ],
+                                    inputs: [
+                                        {
+                                            name: "outputs"
+                                        }
+                                    ]
+                                },
+                                dragHandle: ".custom",
+                            })
+                        }}
+                    >
+                        <Paper className='hover'>
+                            <Stack padding={1}>
+                                <Typography>Agent task</Typography>
+                                <Typography sx={{ color: 'grey' }} variant='body2'>
+                                    Agent task node allow to perform agent task
+                                </Typography>
+                            </Stack>
+                        </Paper>
+                    </div>
+                    {
+                        agentsToMethods(agents).map(e => (
+                            <div
+                                key={e.agentId + e.name}
+                                draggable
+                                onDragStart={() => {
+                                    setNodeData({
+                                        type: "method",
+                                        data: {
+                                            name: `${e.agentId}/${e.name}`,
+                                            inputs: e.inputs.map(i => ({
+                                                name: i.name
+                                            })),
+                                            outputs: e.outputs.map(o => ({
+                                                name: o.name
+                                            }))
+                                        }
+                                    })                                    
+                                }}
+                            >
+                                <MethodCardSmall method={e} PaperProps={{ className: "hover" }}/>
+                            </div>
+                        ))
+                    }
+                </Stack>
             </Stack>
             <ReactFlow
                 nodeTypes={nodeTypes}
                 onInit={e => setReactFlowInstance(e)}
                 nodes={nodes}
                 edges={edges}
-
+                onDragStart={onDragStart}
+                onDragOver={onDragOver}
                 onNodesChange={onNodesChange}
                 onEdgesChange={onEdgesChange}
                 onConnect={onConnect}
+                onDrop={onDrop}
                 // onConnectEnd={onConnectEnd}
-                className="react-flow-subflows-example"
                 fitView
                 minZoom={0.1}
             >

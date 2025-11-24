@@ -213,8 +213,9 @@ class AutocompleteController {
                     const textNode = $createTextNode(nextNode.getTextContent());
                     anchor?.insertAfter(textNode);
                     nextNode.remove();  // TODO: Remove `this.__node` directly
-                    // textNode.selectNext();
                     textNode.selectEnd();
+
+                    // TODO: Important: join text nodes [before][tab][after] to one
                     this.__node = undefined;
                 }
             }

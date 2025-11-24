@@ -13,7 +13,7 @@ import { EditableMarkdown, MarkdownContext } from "../../external/contexts/Markd
 import { ContextProps } from "./types";
 import { Markdown } from "../../components/Markdown";
 import Link from "../../components/Link";
-import { Context, getContext } from "../../api/context";
+import { Context, getContext, getContexts } from "../../api/context";
 import CloseIcon from '@mui/icons-material/Close';
 
 const AgentMethodsList = ({ agent, onClick }: { agent: Agent, onClick?: (m: Method, a: Agent) => void; }) => {
@@ -81,7 +81,11 @@ const MenuButton = styled(MenuIcon)({
 export const ContextPage = () => {
     const { projectId, contextId } = useParams();
 
-
+    const { data: projectContexts } = useQuery<Context[]>({
+        queryFn: () => getContexts(projectId),
+        queryKey: ['projects', projectId, 'contexts'],
+    });
+    
     const queryClient = useQueryClient();
 
     const { data: context } = useQuery<Context>({
@@ -168,8 +172,8 @@ export const ContextPage = () => {
                     </Stack>
                 </Link>
                 <Collapse in={sidebarOpen} unmountOnExit orientation="horizontal">
-                    <Stack gap={4}>
-                        <Stack gap={'0.2rem'}>
+                    <Stack gap={4} minWidth={"15rem"}>
+                        {/* <Stack gap={'0.2rem'}>
                             <Typography fontWeight={700}>Subscribtions</Typography>
                             {
                                 agentMethods.map(e => (
@@ -208,19 +212,23 @@ export const ContextPage = () => {
                                     </Tooltip>
                                 ))
                             }
-                        </Stack>
-                        <Stack gap={1} width={'300px'}>
-                            <Typography fontWeight={700}>Related contexts</Typography>
-                            <Paper sx={{ padding: 1, position: "relative" }} elevation={4}>
-                                <Typography>Issue Template</Typography>
-                            </Paper>
-                            <Paper sx={{ padding: 1, position: "relative" }} elevation={4}>
-                                <Typography>UserStory :: Implement</Typography>
-                            </Paper>
-                            <Paper sx={{ padding: 1, position: "relative" }} elevation={4}>
-                                <Typography>Issue Template</Typography>
-                            </Paper>
-                            <Button variant="contained">+ Add</Button>
+                        </Stack> */}
+                        <Stack>
+                            <Typography fontWeight={700}>Project contexts</Typography>
+                            <Stack gap={1} maxHeight={"50rem"} overflow={"scroll"}>
+                                {
+                                    projectContexts?.filter(e => true).map(e => (
+                                        <Link to={`/projects/${projectId}/contexts/${e.id}`}>
+                                            <Paper key={e.id} className="hover">
+                                                <Stack padding={1}>
+                                                    <Typography>{e.name}</Typography>
+                                                    <Typography variant='caption'>{e.tp}</Typography>
+                                                </Stack>
+                                            </Paper>
+                                        </Link>
+                                    ))
+                                }
+                            </Stack>
                         </Stack>
                     </Stack>
                 </Collapse>

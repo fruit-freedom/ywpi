@@ -1,4 +1,4 @@
-import { Stack  } from "@mui/material";
+import { Paper, Stack, Typography  } from "@mui/material";
 import { useAgents } from "../../store/store";
 import { useUserPresets } from "./store";
 import AgentTaskBlock from "./AgentTaskBlock";
@@ -13,23 +13,25 @@ const UserPresets = () => {
     return (
         <>
             <Stack
-                border={"1px solid lightgrey"}
                 position={"fixed"}
                 bottom={"2rem"}
                 right={"2rem"}
-                padding={1}
-                gap={1}
             >
-                <CompletitionBlock
-                    agents={agents}
-                    activeMethod={completitionMethod}
-                    onChange={setCompletitionMethod}
-                />
-                <AgentTaskBlock
-                    agents={agents}
-                    activeMethod={agentTaskMethod}
-                    onChange={setAgentTaskMethod}
-                />
+                <Paper>
+                    <Stack gap={1} padding={1}>
+                        <Typography>Active algorithms</Typography>
+                        <CompletitionBlock
+                            agents={agents}
+                            activeMethod={completitionMethod}
+                            onChange={setCompletitionMethod}
+                        />
+                        <AgentTaskBlock 
+                            agents={agents}
+                            activeMethod={agentTaskMethod}
+                            onChange={setAgentTaskMethod}
+                        />
+                    </Stack>                    
+                </Paper>
             </Stack>
         </>
     )

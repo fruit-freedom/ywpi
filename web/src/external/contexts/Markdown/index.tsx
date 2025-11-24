@@ -21,7 +21,6 @@ import { ListNode, ListItemNode } from "@lexical/list";
 import { TableNode, TableCellNode, TableRowNode } from "@lexical/table";
 import { CodeNode } from "@lexical/code";
 import { HeadingNode, QuoteNode } from "@lexical/rich-text";
-import { HorizontalRuleNode } from "@lexical/react/LexicalHorizontalRuleNode";
 import { TabIndentationPlugin } from '@lexical/react/LexicalTabIndentationPlugin';
 
 import "./index.css"
@@ -36,6 +35,7 @@ import ExecutionResultNode from "./ExecutionResultNode";
 import { AutocompleteNode, AutocompletePlugin, AutocompletePluginRef, CompletitionFnOutputs } from "./AutocompletePlugin";
 import UserPresets from "../../../shared/UserPresets";
 import { useUserPresets } from "../../../shared/UserPresets/store";
+import { AgentTaskPlugin, AgentTaskPluginRef, AgentTaskResult, TaskNode } from "./AgentTaskPlugin";
 
 
 interface Selection {
@@ -260,7 +260,7 @@ interface EditorProps {
     defaultValue?: string;
     defaultTree?: any;
     ref?: RefObject<ContentAccessRef>;
-    completitionFn?: () => Promise<string>;
+    completitionFn?: () => Promise<CompletitionFnOutputs>;
 }
 
 
@@ -319,8 +319,9 @@ class ExecutionNode extends TextNode {
     // Override methods like isBackward, etc.
 }
 
+type EditorRef = ContentAccessRef & AutocompletePluginRef & AgentTaskPluginRef;
 
-const Editor = forwardRef(function Editor(props: EditorProps, ref: ForwardedRef<ContentAccessRef & AutocompletePluginRef>) {
+const Editor = forwardRef(function Editor(props: EditorProps, ref: ForwardedRef<EditorRef>) {
     const initialConfig = {
         namespace: 'MyEditor',
         theme: {
@@ -343,6 +344,7 @@ const Editor = forwardRef(function Editor(props: EditorProps, ref: ForwardedRef<
             ContextLinkNode,
             ExecutionResultNode,
             AutocompleteNode,
+            TaskNode,
         ],
         editorState: (editor: LexicalEditor) => {
             if (props.defaultTree) {
@@ -357,11 +359,12 @@ const Editor = forwardRef(function Editor(props: EditorProps, ref: ForwardedRef<
     };
 
     const contentRef = useRef<ContentAccessRef>(null);
-    const autocompleteRef = useRef<AutocompletePluginRef>(null);
+    const autocompletePluginRef = useRef<AutocompletePluginRef>(null);
+    const agentTaskPluginRef = useRef<AgentTaskPluginRef>(null);
     useImperativeHandle(
         ref,
-        () => ({...contentRef.current, ...autocompleteRef.current}),
-        [contentRef, autocompleteRef]
+        () => ({...contentRef.current, ...autocompletePluginRef.current, ...agentTaskPluginRef.current}),
+        [contentRef, autocompletePluginRef, agentTaskPluginRef]
     );
 
     useEffect(() => {
@@ -388,11 +391,12 @@ const Editor = forwardRef(function Editor(props: EditorProps, ref: ForwardedRef<
             {
                 props.completitionFn ?
                 <AutocompletePlugin
-                    ref={autocompleteRef}
+                    ref={autocompletePluginRef}
                     completitionFn={props.completitionFn}
                 />
                 : null
             }
+            <AgentTaskPlugin ref={agentTaskPluginRef}/>
         </LexicalComposer>
     );
 })
@@ -434,24 +438,24 @@ export const EditableMarkdown = forwardRef(function Editor(props: EditorProps, r
     const contentRef = useRef<ContentAccessRef>(null);
     useImperativeHandle(ref, () => contentRef.current, [contentRef]);
 
-    const divRef = useRef<HTMLDivElement>(null);
+    // const divRef = useRef<HTMLDivElement>(null);
 
-    useEffect(() => {
-        const onKeydown = (e: any) => {
-            if ((e.ctrlKey || e.metaKey) && e.keyCode === 83) { // Ctrl + S
-                e.preventDefault();
-                e.stopPropagation();
-            }
-        }
+    // useEffect(() => {
+    //     const onKeydown = (e: any) => {
+    //         if ((e.ctrlKey || e.metaKey) && e.keyCode === 83) { // Ctrl + S
+    //             e.preventDefault();
+    //             e.stopPropagation();
+    //         }
+    //     }
 
-        if (divRef.current)
-            divRef.current.addEventListener("keydown", onKeydown);
+    //     if (divRef.current)
+    //         divRef.current.addEventListener("keydown", onKeydown);
 
-        return () => divRef.current ? divRef.current.removeEventListener("keydown", onKeydown) : undefined;
-    }, [divRef]);
+    //     return () => divRef.current ? divRef.current.removeEventListener("keydown", onKeydown) : undefined;
+    // }, [divRef]);
 
     return (
-        <div ref={divRef}>
+        <div>
             <LexicalComposer initialConfig={initialConfig}>
                 <RichTextPlugin
                     contentEditable={
@@ -464,6 +468,7 @@ export const EditableMarkdown = forwardRef(function Editor(props: EditorProps, r
                 <HistoryPlugin />
                 <MarkdownShortcutPlugin transformers={TRANSFORMERS} />
                 <TabIndentationPlugin />
+                <ContetnAcessPlugin ref={contentRef}/>
             </LexicalComposer>
         </div>
     );
@@ -479,7 +484,7 @@ interface State {
 }
 
 export const MarkdownContext = ({ data, applyContextUpdate, contextId, forceContextRefetch }: ContextProps<State>) => {
-    const editorRef = useRef<ContentAccessRef & AutocompletePluginRef>(null);
+    const editorRef = useRef<EditorRef>(null);
 
     const { } = useEvents({
         onEvent: (e) => {
@@ -646,7 +651,7 @@ export const MarkdownContext = ({ data, applyContextUpdate, contextId, forceCont
 
     }, [completitionMethod]);
 
-    const agentTaskFn = useCallback<() => Promise<CompletitionFnOutputs>>(() => {
+    const agentTaskFn = useCallback<(task: string) => Promise<any>>((task: string) => {
         const localEnv = new Map<string, any>([
             ["Selection", editorRef.current?.getSelection()],
             ["ContextId", {
@@ -660,7 +665,8 @@ export const MarkdownContext = ({ data, applyContextUpdate, contextId, forceCont
                     content: editorRef.current?.getContent()
                 },
                 subscribtions: []
-            }]
+            }],
+            ["AgentTask", { description: task }]
         ]);
         
         return new Promise((resolve, reject) => {
@@ -756,24 +762,9 @@ export const MarkdownContext = ({ data, applyContextUpdate, contextId, forceCont
                 onClose={(value) => {
                     setAgentTaskModelOpen(false);
                     if (value) {
-                        editorRef.current?.insertNode({
-                            type: "execution_result",
-                            uuid: "Generating...",
-                            children: [
-                                {
-                                    type: "text",
-                                    text: "result"
-                                }
-                            ]
-                        })
-
                         if (agentTaskMethod) {
-                            agentTaskFn()
+                            editorRef.current?.insertAgentTask(value, agentTaskFn(value));
                         }
-                        // editorRef.current?.insertNode({
-                        //     type: "text",
-                        //     text: value
-                        // });
                     }
                 }}
             />

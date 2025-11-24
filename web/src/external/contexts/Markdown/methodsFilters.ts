@@ -52,6 +52,7 @@ export const ingestAsyncMethod = (method: MethodWithAgent, env: Map<string, any>
 
 export const ingestMethod = (method: MethodWithAgent, env: Map<string, any>): IngestedMethod => {
     const inputs: any = {}
+    console.log("Ingesting", method, env);
     for (let input of method.inputs) {
         if (env.has(input.type.name)) {
             inputs[input.name] = env.get(input.type.name);

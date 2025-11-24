@@ -1,5 +1,5 @@
-import { Box, Button, Modal, Paper, Stack, TextField, Typography } from "@mui/material";
-import React, { useRef, useState } from "react";
+import { Button, Modal, Paper, Stack, TextField, Typography } from "@mui/material";
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import Link from "../../components/Link";
 import { useNavigate } from "react-router-dom";
@@ -90,14 +90,12 @@ export default () => {
             <Stack direction={'row'} gap={1} flexWrap={'wrap'}>
                 {
                     data?.map(e =>
-                        <Link
-                            to={`/projects/${e.id}`}
-                            key={e.id}
-                        >
-                            <Paper elevation={8} sx={{ cursor: 'pointer' }}>
-                                <Stack padding={'1rem'} height={'150px'} width={'200px'}>
-                                    <Typography color="grey" variant='body2'>{e.id}</Typography>
+                        <Link to={`/projects/${e.id}`} key={e.id}>
+                            <Paper className="hover">
+                                <Stack padding={'1rem'} height={'250px'} width={'200px'} gap={1}>
+                                    <Typography color="grey" variant="caption">{e.id}</Typography>
                                     <Typography fontWeight={700}>{e.name}</Typography>
+                                    <Typography color="grey" variant="body2">Project provide Large Language Models research and regular work.</Typography>
                                 </Stack>
                             </Paper>
                         </Link>
@@ -108,9 +106,7 @@ export default () => {
                 <Typography variant="h4" fontWeight={700}>Create your first project</Typography>
                 <Button
                     variant="contained"
-                    sx={{
-                        width: "50rem",
-                    }}
+                    sx={{ width: "50rem" }}
                     onClick={() => setOpen(true)}
                 >
                     + Create
@@ -121,7 +117,7 @@ export default () => {
                 onClose={(project) => {
                     setOpen(false);
                     if (project) {
-                        queryClient.invalidateQueries(["projects"])
+                        queryClient.invalidateQueries(["projects"]);
                         navigate(`/projects/${project.id}`);
                     }
                 }}

@@ -1,10 +1,14 @@
 import { type Edge, type Node, type ReactFlowInstance } from '@xyflow/react';
 import { create } from 'zustand'
 
+
+
+
 export interface BoardState {
     nodes: Node[];
     edges: Edge[];
     reactFlowInstance?: ReactFlowInstance;
+    
 
     setNodes: (nodes: (nodes: Node[]) => Node[] | Node[]) => void;
     // addNode: (node: Node) => void;
@@ -31,3 +35,30 @@ export const useBoard = create<BoardState>((set) => ({
         return { ...state, reactFlowInstance }
     })
 }));
+
+export interface DataNodesState {
+    dataNodes: {
+        [key: string]: any;
+    };
+    outputs?: {
+        [key: string]: any;
+    }
+
+    setData: (nodeId: string, data: any) => void;
+    setOutputs: (data: any) => void;
+}
+
+export const useDataNodes = create<DataNodesState>((set) => ({
+    dataNodes: {},
+
+    setData: (nodeId: string, data: any) => set((state: DataNodesState) => {
+        return { ...state, dataNodes: { ...state.dataNodes, [nodeId]: data } };
+    }),
+
+    setOutputs: (data: any) => set((state: DataNodesState) => {
+        return { ...state, outputs: data };
+    }),
+}));
+
+
+

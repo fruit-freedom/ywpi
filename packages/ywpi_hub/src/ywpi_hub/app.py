@@ -14,6 +14,15 @@ from ywpi_hub.agents_repository import AgentRepository
 from ywpi_hub import hub_pb2_grpc, hub_pb2, hub_models
 from ywpi_hub.connection import Connection, AgentCommunicator
 from ywpi_hub.logger import logger
+from ywpi_hub import settings
+
+
+grpc_channel_options = [
+    ('grpc.max_send_message_length', settings.YWPI_GRPC_MAX_MESSAGE_SIZE),
+    ('grpc.max_receive_message_length', settings.YWPI_GRPC_MAX_MESSAGE_SIZE),
+    ('grpc.keepalive_time_ms', settings.YWPI_GRPC_KEEPALIVE_TIME_MS),
+    ('grpc.keepalive_timeout_ms', settings.YWPI_GRPC_KEEPALIVE_TIMEOUT_MS),
+]
 
 
 class Hub(hub_pb2_grpc.HubServicer):
@@ -179,7 +188,7 @@ class Hub(hub_pb2_grpc.HubServicer):
         return task.outputs
 
     async def run(self):
-        server = grpc.aio.server()
+        server = grpc.aio.server(options=grpc_channel_options)
         hub_pb2_grpc.add_HubServicer_to_server(self, server)
         server.add_insecure_port("[::]:50051")
 
@@ -199,7 +208,7 @@ class Hub(hub_pb2_grpc.HubServicer):
 
     @asynccontextmanager
     async def start(self):
-        server = grpc.aio.server()
+        server = grpc.aio.server(options=grpc_channel_options)
         hub_pb2_grpc.add_HubServicer_to_server(self, server)
         server.add_insecure_port("[::]:50051")
         await server.start()

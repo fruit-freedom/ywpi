@@ -1,13 +1,13 @@
 import typing as t
 import functools
-from inspect import Parameter, signature, isgeneratorfunction
+from inspect import signature
 
 import pydantic
 
 import ywpi
 
 
-# FnT = t.Callable[[], t.Union[LexicalNode, list[LexicalNode], Markdown, str]]
+# TODO: # Add support for LexicalNode, list[LexicalNode], Markdown
 CompletitionFnT = t.Callable[[], t.Union[str]]
 
 
@@ -18,6 +18,10 @@ class CompletitionOutputs(pydantic.BaseModel):
 def completition(fn: CompletitionFnT):
     """
     Decorate function that implement "autocomplete" (completition) workflow
+
+    Possible inputs:
+    - Context[Markdown]
+    - Selection
     """
 
     @functools.wraps(fn)

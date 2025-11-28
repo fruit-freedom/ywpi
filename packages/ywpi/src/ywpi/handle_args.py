@@ -292,7 +292,7 @@ def handle_ret(fn):
 
     if not t.get_args(tp) and issubclass(inspect.Parameter.empty, tp): return
 
-    if issubclass(tp, pydantic.BaseModel):
+    if inspect.isclass(tp) and issubclass(tp, pydantic.BaseModel):
         return {
             k: handle_tp(v.annotation)
             for k, v in tp.model_fields.items()
@@ -307,7 +307,7 @@ def get_output_dict(fn):
         if isinstance(t, dict):
             return t
 
-        if t.tp in (list, set) and t.args is not None:
+        if t.tp in (list, set) and t.args is not None and len(t.args) > 0:
             return {
                 '__others__': t.args[0]
             }

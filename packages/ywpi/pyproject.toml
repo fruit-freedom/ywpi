@@ -17,3 +17,8 @@ dependencies = [
 
 [project.scripts]
 ywpi = "ywpi.cli:main"
+
+[dependency-groups]
+agents = [
+    "openai>=2.14.0",
+]

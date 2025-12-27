@@ -1,5 +1,5 @@
 from aio_pika import connect
-from aio_pika.abc import AbstractIncomingMessage
+from aio_pika.abc import AbstractIncomingMessage, ExchangeType
 from bson import ObjectId
 import traceback
 
@@ -193,8 +193,7 @@ async def consume_events() -> None:
 
         # Creating a channel
         channel = await connection.channel()
-        exchange = await channel.get_exchange(RQ_EXCHANGE_NAME)
-        # TODO: Add declare_exchange
+        exchange = await channel.declare_exchange(RQ_EXCHANGE_NAME, ExchangeType.TOPIC)
 
         # Declaring queue (Queue MUST be durable for preventing events disappearing)
         queue = await channel.declare_queue('server.queue', durable=True)

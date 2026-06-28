@@ -216,7 +216,7 @@ class Hub(hub_pb2_grpc.HubServicer):
             raise exception
         return task.outputs
 
-    async def run(self):
+    def _build_server(self):
         interceptors = []
         if type(self).authenticate is not Hub.authenticate: # Check if overridden
             interceptors.append(AuthorizationInterceptor(self.authenticate))
@@ -224,6 +224,10 @@ class Hub(hub_pb2_grpc.HubServicer):
         server = grpc.aio.server(options=grpc_channel_options, interceptors=interceptors)
         hub_pb2_grpc.add_HubServicer_to_server(self, server)
         server.add_insecure_port("[::]:50051")
+        return server
+
+    async def run(self):
+        server = self._build_server()
 
         await server.start()
         logger.info('Started and listening on [::]:50051')
@@ -241,9 +245,8 @@ class Hub(hub_pb2_grpc.HubServicer):
 
     @asynccontextmanager
     async def start(self):
-        server = grpc.aio.server(options=grpc_channel_options)
-        hub_pb2_grpc.add_HubServicer_to_server(self, server)
-        server.add_insecure_port("[::]:50051")
+        server = self._build_server()
+
         await server.start()
 
         logger.info('Started and listening on [::]:50051')

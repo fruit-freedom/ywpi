@@ -25,6 +25,35 @@ grpc_channel_options = [
 ]
 
 
+class AuthorizationInterceptor(grpc.aio.ServerInterceptor):
+    def __init__(
+        self,
+        authenticate: t.Callable[[str | None], t.Awaitable[bool]]
+    ):
+        self._authenticate = authenticate
+
+        def abort(ignored_request, context):
+            context.abort(grpc.StatusCode.UNAUTHENTICATED, "Invalid API key")
+
+        self._abort_handler = grpc.unary_unary_rpc_method_handler(abort)
+
+    async def intercept_service(self, continuation, handler_call_details):
+        api_key = None
+        for name, value in handler_call_details.invocation_metadata:
+            if name == "authorization":
+                api_key = value
+                break
+
+        try:
+            if await self._authenticate(api_key):
+                return await continuation(handler_call_details)
+            else:
+                return self._abort_handler
+        except BaseException:
+            traceback.print_exc()
+            return self._abort_handler
+
+
 class Hub(hub_pb2_grpc.HubServicer):
     def __init__(
             self,
@@ -188,7 +217,11 @@ class Hub(hub_pb2_grpc.HubServicer):
         return task.outputs
 
     async def run(self):
-        server = grpc.aio.server(options=grpc_channel_options)
+        interceptors = []
+        if type(self).authenticate is not Hub.authenticate: # Check if overridden
+            interceptors.append(AuthorizationInterceptor(self.authenticate))
+
+        server = grpc.aio.server(options=grpc_channel_options, interceptors=interceptors)
         hub_pb2_grpc.add_HubServicer_to_server(self, server)
         server.add_insecure_port("[::]:50051")
 
@@ -224,6 +257,9 @@ class Hub(hub_pb2_grpc.HubServicer):
             traceback.print_exc()
         finally:
             await repository.close()
+
+    async def authenticate(self, api_key: str | None) -> bool:
+        return True
 
 
 @asynccontextmanager

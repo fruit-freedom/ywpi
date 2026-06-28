@@ -15,3 +15,6 @@ YWPI_GRPC_MAX_MESSAGE_SIZE = int(os.getenv('YWPI_GRPC_MAX_MESSAGE_SIZE', 1024 * 
 # As mentioned in docs https://grpc.io/docs/guides/keepalive/ , client has infinite timeout by default
 YWPI_GRPC_KEEPALIVE_TIME_MS = int(os.getenv('YWPI_GRPC_KEEPALIVE_TIME_MS', 1_200_000)) # Default 20 min
 YWPI_GRPC_KEEPALIVE_TIMEOUT_MS = int(os.getenv('YWPI_GRPC_KEEPALIVE_TIMEOUT_MS', 20_000)) # Default 20 sec
+
+# Optional authorization
+YWPI_API_KEY = os.getenv('YWPI_API_KEY', None)

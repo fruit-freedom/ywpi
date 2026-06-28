@@ -318,6 +318,7 @@ class Exchanger:
             )
 
     def _reader(self):
+        error = None
         try:
             for message in self.input_channel:
                 # Bug in aiochannel pkg: `def __aiter__(self) -> "Channel":` no type
@@ -337,12 +338,14 @@ class Exchanger:
                 else:
                     logger.warning(f'Recieved unexpected message type {type(attr)}')
         except BaseException as e:
+            error = e
             self.finish.set_exception(e)
         else:
-            self.finish.set_exception(RuntimeError("hub connection broken"))
+            error = RuntimeError("hub connection broken")
+            self.finish.set_exception(error)
         finally:
             with self.outgoings_requests_lock:
-                [ f.set_exception(Exception()) for f in self.outgoings_requests.values() ]
+                [ f.set_exception(error) for f in self.outgoings_requests.values() ]
 
     def call(self, rpc: hub_pb2.Rpc, payload: pydantic.BaseModel) -> futures.Future[hub_pb2.ResponseMessage]:
         reply_to = str(uuid.uuid4())
@@ -375,12 +378,32 @@ def serve(
     name: str = 'Untitled',
     description: str = 'No description provided',
     project: str = settings.YWPI_PROJECT_NAME,
+    ssl: bool = False,
+    api_key: str = None
 ):
+    """
+    Authorization source priority:
+        - passing `api_key`
+        - setting `YWPI_API_KEY` environment variable
+    """
     service = SimpleMethodExecuter(REGISTERED_METHODS)
-    with grpc.insecure_channel(settings.YWPI_HUB_HOST, options=grpc_channel_options) as grpc_channel:
-        greeter_stub = hub_pb2_grpc.HubStub(grpc_channel)
+
+    if ssl:
+        grpc_credentials = grpc.ssl_channel_credentials()
+        grpc_channel = grpc.secure_channel(settings.YWPI_HUB_HOST, grpc_credentials, options=grpc_channel_options)
+    else:
+        grpc_channel = grpc.insecure_channel(settings.YWPI_HUB_HOST, options=grpc_channel_options)
+
+    metadata = []
+    if api_key is not None:
+        metadata.append(('authorization', api_key))
+    elif settings.YWPI_API_KEY is not None:
+        metadata.append(('authorization', settings.YWPI_API_KEY))
+
+    with grpc_channel as open_channel:
+        greeter_stub = hub_pb2_grpc.HubStub(open_channel)
         output_channel = Channel()
-        response_iterator = greeter_stub.Connect(iter(output_channel))
+        response_iterator = greeter_stub.Connect(iter(output_channel), metadata=metadata)
 
         hello_message = hub_models.RegisterAgentRequest(
             id=id,
@@ -402,6 +425,8 @@ def serve(
             exchanger.finish.result()
         except KeyboardInterrupt:
             pass
+        except BaseException as e:
+            print(e)
         finally:
             output_channel.close()
 

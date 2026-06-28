@@ -43,7 +43,7 @@ interface Selection {
     text: string;
 }
 
-interface ContentAccessRef {
+export interface ContentAccessRef {
     getContent: () => string;
     setContent: (value: string) => void;
     setTree: (value: any) => void;

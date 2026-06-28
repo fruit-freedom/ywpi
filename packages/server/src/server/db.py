@@ -14,5 +14,6 @@ objects_collection = mongodb['objects']
 contexts_collection = mongodb['contexts']
 nodes_collection = mongodb['nodes']
 edges_collection = mongodb['edges']
+workflows_collection = mongodb['workflows']
 
 execution_managers_collection = mongodb['execution_managers']

@@ -44,6 +44,20 @@ export default () => {
                         <Typography variant="h6" color='black' fontWeight={600} textTransform={'uppercase'}>Agents</Typography>
                     </Link>
                 </MenuItem>
+                <MenuItem
+                    sx={{ backgroundColor: location.pathname.startsWith("/workflows") ? "lightgrey": "none" }}
+                >
+                    <Link to={'/workflows'}>
+                        <Typography
+                            variant="h6"
+                            color='black'
+                            fontWeight={600}
+                            textTransform={'uppercase'}
+                        >
+                            Workflows
+                        </Typography>
+                    </Link>
+                </MenuItem>
             </Toolbar>
         </AppBar>
     );

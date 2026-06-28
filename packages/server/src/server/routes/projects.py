@@ -37,6 +37,7 @@ class Edge(pydantic.BaseModel):
 class Project(pydantic.BaseModel):
     id: PyObjectId = pydantic.Field(alias='_id', serialization_alias='id', default=None)
     name: str
+    description: t.Optional[str] = None
 
 
 class Board(pydantic.BaseModel):
@@ -47,9 +48,11 @@ class Board(pydantic.BaseModel):
 @router.post('/api/projects', tags=['projects'])
 async def create_project(
     name: t.Annotated[str, fastapi.Body()],
-    tags: t.Annotated[list[str], fastapi.Body()] = None
+    description: t.Annotated[str, fastapi.Body()] = None
 ) -> Project:
-    result = await projects_collection.insert_one(Project(name=name).model_dump(mode='json'))
+    result = await projects_collection.insert_one(
+        Project(name=name, description=description).model_dump(mode='json')
+    )
     return await projects_collection.find_one({ '_id': result.inserted_id })
 
 

@@ -1,6 +1,8 @@
 import pytest
+import typing as t
 
 from ywpi import RegisteredMethod
+from ywpi.handle_args import get_input_dict, get_output_dict
 from ywpi_hub import hub_models
 
 from utils import Agent, create_app_with_agents
@@ -122,3 +124,41 @@ async def test_custom_data_error_no_serialization_model():
 
         assert e.value.source_exception_type == "TestCustomError"
         assert e.value.data is None
+
+DEFAULT_RET_VALUE = {
+    "key": "value"
+}
+
+@pytest.mark.asyncio
+async def test_outputs_not_pydantic():
+    from typing import List, Dict
+
+    def method() -> List[Dict[str, str]]:
+        return DEFAULT_RET_VALUE
+
+    inputs = get_input_dict(method)
+    outputs = get_output_dict(method)
+
+    agent = Agent(id="test-agent-id", name="test-agent-name", methods={
+        "method": RegisteredMethod(method, inputs, outputs)
+    })
+
+    async with create_app_with_agents([agent]) as app:
+        recieved_outputs = await app.execute_method("test-agent-id", "method", {})
+        assert recieved_outputs == DEFAULT_RET_VALUE
+
+
+def test_outputs_default():
+    from typing import List, Dict
+
+    def method() -> List[Dict[str, str]]: return {}
+    get_output_dict(method)
+
+    def method() -> int: return {}
+    get_output_dict(method)
+
+    def method() -> list: return {}
+    get_output_dict(method)
+
+    def method() -> t.Any: return {}
+    get_output_dict(method)

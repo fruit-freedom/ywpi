@@ -14,6 +14,8 @@ from .routes.tasks import router as tasks_router
 from .execution_manager import router as execution_managers_router
 from .routes.contexts import router as contexts_router
 from .routes.webhook import router as webhooks_router
+from .routes.workflows import router as workflows_router
+from .routes.executions import router as executions_router
 
 router = fastapi.APIRouter()
 
@@ -53,6 +55,18 @@ app.include_router(objects_router)
 app.include_router(execution_managers_router)
 app.include_router(contexts_router)
 app.include_router(webhooks_router)
+app.include_router(workflows_router)
+app.include_router(executions_router)
+
+# Add CORS
+from fastapi.middleware.cors import CORSMiddleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=['*'],
+    allow_credentials=True,
+    allow_methods=['*'],
+    allow_headers=['*'],
+)
 
 if __name__ == '__main__':
     main()

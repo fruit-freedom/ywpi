@@ -3,44 +3,29 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import Link from "../../components/Link";
 import { useNavigate } from "react-router-dom";
-
-interface Project {
-    id: string;
-    name: string;
-}
+import { createProject, getProjects, Project } from "../../entities/project/api";
 
 interface CreateProjectFormProps {
     open: boolean;
     onClose: (project?: any) => void;
 }
 
-const createProject = (options: { name: string }) => {
-    return fetch(`/api/projects`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            name: options.name
-        })
-    })
-    .then(e => e.json())
-}
-
 const CreateProjectForm = ({ open, onClose }: CreateProjectFormProps) => {
     const createProjectMutation = useMutation({
-        mutationFn: createProject,
+        mutationFn: (options: Partial<Project>) => createProject(options),
         onSuccess: (e) => onClose(e),
         onError: () => onClose()
     });
 
-    const createProjectAndClose = (name: string) => {
-        createProjectMutation.mutate({ name })
-    };
-
     const [name, setName] = useState({
         value: '',
-        helperText: 'Write context name (e.g. Workspace)',
+        helperText: 'Write project name (e.g. Workspace)',
+        error: false,
+    });
+
+    const [description, setDescription] = useState({
+        value: '',
+        helperText: 'Write project description',
         error: false,
     });
 
@@ -61,8 +46,17 @@ const CreateProjectForm = ({ open, onClose }: CreateProjectFormProps) => {
                         label={'Name'}
                         {...name}
                     />
+                    <TextField
+                        size='small'
+                        fullWidth
+                        onChange={(e) => setDescription(prev => ({...prev, value: e.target.value}))}
+                        label={'Description'}
+                        rows={5}
+                        multiline
+                        {...description}
+                    />
                     <Button
-                        onClick={() => createProjectAndClose(name.value)}
+                        onClick={() => createProjectMutation.mutate({ name: name.value, description: description.value })}
                         variant="contained"
                     >
                         Create
@@ -79,14 +73,18 @@ export default () => {
 
     const { data } = useQuery<Project[]>({
         queryKey: 'projects',
-        queryFn: () => fetch('/api/projects').then(r => r.json())
+        queryFn: () => getProjects()
     });
 
     const [open, setOpen] = useState(false);
 
     return (
         <Stack padding={'0 4rem'} gap={4}>
-            <Typography fontWeight={700} variant="h4">Projects</Typography>
+            <Stack direction="row" justifyContent={"space-between"}>
+                <Typography variant="h4">Projects</Typography>
+                <Button
+                    variant="contained" onClick={() => setOpen(true)}>+ Create Project</Button>
+            </Stack>
             <Stack direction={'row'} gap={1} flexWrap={'wrap'}>
                 {
                     data?.map(e =>
@@ -95,23 +93,27 @@ export default () => {
                                 <Stack padding={'1rem'} height={'250px'} width={'200px'} gap={1}>
                                     <Typography color="grey" variant="caption">{e.id}</Typography>
                                     <Typography fontWeight={700}>{e.name}</Typography>
-                                    <Typography color="grey" variant="body2">Project provide Large Language Models research and regular work.</Typography>
+                                    <Typography color="grey" variant="body2">{e.description}</Typography>
                                 </Stack>
                             </Paper>
                         </Link>
                     )
                 }
             </Stack>
-            <Stack gap={6} alignItems={"center"}>
-                <Typography variant="h4" fontWeight={700}>Create your first project</Typography>
-                <Button
-                    variant="contained"
-                    sx={{ width: "50rem" }}
-                    onClick={() => setOpen(true)}
-                >
-                    + Create
-                </Button>
-            </Stack>
+            {
+                data?.length === 0 ?
+                <Stack gap={6} alignItems={"center"}>
+                    <Typography variant="h4" fontWeight={700}>Create your first project</Typography>
+                    <Button
+                        variant="contained"
+                        sx={{ width: "50rem" }}
+                        onClick={() => setOpen(true)}
+                    >
+                        + Create
+                    </Button>
+                </Stack>
+                : null
+            }
             <CreateProjectForm
                 open={open}
                 onClose={(project) => {

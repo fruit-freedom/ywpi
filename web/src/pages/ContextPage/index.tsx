@@ -143,7 +143,7 @@ export const ContextPage = () => {
         return pairs.filter(p => p.method.inputs.find(i => i.type.name === 'Context'));
     }, [agents]);
 
-    const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [sidebarOpen, setSidebarOpen] = useState(true);
 
     if (!context)
         return null;

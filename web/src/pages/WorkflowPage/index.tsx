@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Button, Paper, Stack, TextField, Typography } from "@mui/material"
+import { Box, Button, Paper, Stack, TextField, Typography } from "@mui/material"
 import {
     ReactFlow,
     addEdge,
@@ -19,67 +19,12 @@ import { nodeTypes } from './nodes';
 import { Agent, Method, useAgents } from '../../store/store';
 import { useEvents } from '../../hooks/useEvents';
 import { MethodCardSmall } from '../../shared/MethodCard';
+import { useParams } from 'react-router-dom';
+import { useQuery } from 'react-query';
+import { getWorkflow, updateWorkflow } from '../../entities/workflow/api';
+import { toChain } from './execute-chain';
+import { buildChain } from '../WorkflowsPage/chains';
 
-const initialNodes = [
-    {
-        id: '0',
-        type: 'method',
-        data: {
-            name: "builtins/pdf-check",
-            inputs: [
-            ],
-            outputs: [
-            ],
-        },
-        position: { x: -900, y: -200 },
-    },
-    {
-        id: "2",
-        type: "method",
-        data: {
-            // name: "algorithms/summarization",
-            name: "test/summarization",
-            inputs: [
-            ],
-            outputs: [
-                {
-                    name: "summary"
-                }
-            ]
-        },
-        position: { x: -400, y: 100 },
-    },
-    {
-        id: '3',
-        type: "method",
-        data: {
-            // name: "algorithms/embeddings",
-            name: "test/embeddings",
-            inputs: [
-                {
-                    name: "text"
-                }
-            ],
-            outputs: [
-                {
-                    name: "embedding"
-                }
-            ]
-        },
-        position: { x: 50, y: -100 },
-    },
-];
- 
-const initialEdges = [
-    // { id: '0-1', source: '0', target: '2' },
-    // { id: 'e1-3', source: '1', target: '3' },
-    // { id: 'e4a-4b1', source: '4a', target: '4b1' },
-    // { id: 'e4a-4b2', source: '4a', target: '4b2' },
-    // { id: 'e4b1-4b2', source: '4b1', target: '4b2' },
-    // { id: '2a-2b', source: '2b', target: '2a' },
-    // { id: '2a-2c', source: '2c', target: '2a' },
-    // { id: '2a-2e', source: '2b', target: '2e' },
-];
 
 const executeWorkflow = (payload: any): Promise<any> => {
     return fetch("/api/workflows/execute", {
@@ -92,16 +37,15 @@ const executeWorkflow = (payload: any): Promise<any> => {
     .then(e => e.json())
 }
 
-
-function generateBsonId() {
-  const timestamp = Math.floor(Date.now() / 1000).toString(16);
-  let randomValue = '';
-  for (let i = 0; i < 5; i++) {
-    randomValue += Math.floor(Math.random() * 256).toString(16).padStart(2, '0');
-  }
-  let counter = (Math.random() * 0xFFFFFF).toString(16).padStart(6, '0');
-
-  return timestamp + randomValue;
+const executeChain = (payload: any): Promise<any> => {
+    return fetch("/api/workflows/execute_chain", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+    })
+    .then(e => e.json())
 }
 
 
@@ -203,6 +147,7 @@ function generateId() {
     return result;
 }
 
+
 const agentsToMethods = (agents: Agent[]) => {
     return agents.filter(a => a.status === "connected").flatMap(a => {
         return a.methods.map(m => ({ agentId: a.id, ...m }))
@@ -217,10 +162,23 @@ interface NodeCreationData {
     dragHandle?: string;
 }
 
-export default () => {
-    const { nodes, setNodes, edges, setEdges, reactFlowInstance, setReactFlowInstance } = useBoard();
+const WorkflowPage = ({ workflowId }: { workflowId: string }) => {
+    const { nodes, setNodes, edges, setEdges, reactFlowInstance, setReactFlowInstance, nodesSync } = useBoard();
+
+    const { data } = useQuery({
+        queryFn: () => getWorkflow(workflowId),
+        queryKey: ["workflows", workflowId]
+    });
 
     const { dataNodes, setOutputs } = useDataNodes();
+
+    useEffect(() => {
+        if (!data)
+            return;
+
+        setNodes(prev => data.nodes);
+        setEdges(prev => data.edges);
+    }, [data]);
 
     const { agents } = useAgents();
     useEvents();
@@ -228,7 +186,7 @@ export default () => {
     const onNodesChange = useCallback(
         (changes: any) => {
             setNodes((nds) => {
-                changes.filter(e => e.type === "remove").forEach(e => deleteNode(e.id));
+                changes.filter((e: any) => e.type === "remove").forEach((e: any) => deleteNode(e.id));
                 const newNodes = applyNodeChanges(changes, nds);
                 return newNodes;
             });
@@ -262,40 +220,31 @@ export default () => {
             return [...eds, newEdge];
         });
     }, []);
-    
-    useEffect(() => {
-        // setNodes(initialNodes);
-        setEdges(initialEdges);
-    }, []);
 
     const handleRun = () => {
         console.log(dataNodes)
 
-        setOutputs({});
-        const nodes = reactFlowInstance?.getNodes().map(e => {
-            const updatedNode =  {...e};
-
-            if (e.type === "data") {
-                updatedNode.data.payload = dataNodes[e.id];
+        const newNodes = nodes.map(n => {
+            if (nodesSync[n.id]) {
+                const update = nodesSync[n.id]?.();
+                return { ...n, data: { ...n.data, ...update } };
             }
+            return n;
+        });
+        setNodes(newNodes);
 
-            return updatedNode;
-        })
+        const chain = buildChain(newNodes, edges);
+        console.log(JSON.stringify(chain, null, 2));
 
-        const data = {
-            edges: reactFlowInstance?.getEdges(),
-            nodes: nodes,
-        }
+        // const chain = toChain({ edges, newNodes }, agentsToMethods(agents));
+        setOutputs({});
 
-        executeWorkflow(data)
+        executeChain(chain)
         .then(e => { console.log(e); setOutputs(e); })
         .catch(e => console.error(e))
-
-        console.log("Data", data)
     }
 
     const onDragStart = (event, nodeType) => {
-        // setType(nodeType);
         event.dataTransfer.setData('text/plain', nodeType);
         event.dataTransfer.effectAllowed = 'move';
     };
@@ -319,11 +268,10 @@ export default () => {
                 y: event.clientY,
             });
             const newNode = {
-                id: `${nodes.length + 1}`,
+                id: generateId(),
                 type: nodeData.type,
                 position,
                 dragHandle: nodeData.dragHandle,
-                // dragHandle: '.custom',
                 data: nodeData.data,
             };
 
@@ -334,17 +282,43 @@ export default () => {
         [reactFlowInstance, nodeData, nodes],
     );
 
+    useEffect(() => {
+        const onKeydown = (e: any) => {
+            if ((e.ctrlKey || e.metaKey) && e.keyCode === 83) { // Ctrl + S
+                e.preventDefault();
+
+                const newNodes = nodes.map(n => {
+                    if (nodesSync[n.id]) {
+                        const update = nodesSync[n.id]?.();
+                        return { ...n, data: { ...n.data, ...update } };
+                    }
+                    return n;
+                });
+                setNodes(newNodes);
+
+                updateWorkflow(workflowId, {
+                    edges,
+                    nodes: newNodes,
+                })
+            }
+        }
+        document.addEventListener("keydown", onKeydown);
+
+        return () => document.removeEventListener("keydown", onKeydown);
+    }, [nodes, edges]);
 
     return (
         <Stack
-            width={'99vw'}
-            height={'950px'}
+            // width={'99vw'}
+            height={'92vh'}
             direction={'row'}
             bgcolor={"#fafafa"}
         >
-            <Stack width={"350px"} border={"1px solid grey"} padding={1} maxHeight={'80vh'} sx={{ overflowY: 'scroll' }}>
-                <Button onClick={handleRun}>Run</Button>
-                <Stack gap={1}>
+            <Stack border={"1px solid grey"} padding={1} gap={3}>
+                <Box display={"flex"} justifyContent={"center"}>
+                    <Typography variant="h6" fontWeight={700}>{data?.name}</Typography>
+                </Box>
+                <Stack gap={1} maxHeight={'80vh'} overflow={"auto"}>
                     <div draggable onDragStart={() => {
                             setNodeData({
                                 type: "data",
@@ -373,17 +347,9 @@ export default () => {
                             setNodeData({
                                 type: "agentTask",
                                 data: {
-                                    name: 'None',
-                                    outputs: [
-                                        {
-                                            name: "inputs"
-                                        }
-                                    ],
-                                    inputs: [
-                                        {
-                                            name: "outputs"
-                                        }
-                                    ]
+                                    name: 'custom/llm_call',
+                                    outputs: [],
+                                    inputs: []
                                 },
                                 dragHandle: ".custom",
                             })
@@ -423,6 +389,7 @@ export default () => {
                         ))
                     }
                 </Stack>
+                <Button onClick={handleRun} variant="contained">Run</Button>
             </Stack>
             <ReactFlow
                 nodeTypes={nodeTypes}
@@ -435,7 +402,6 @@ export default () => {
                 onEdgesChange={onEdgesChange}
                 onConnect={onConnect}
                 onDrop={onDrop}
-                // onConnectEnd={onConnectEnd}
                 fitView
                 minZoom={0.1}
             >
@@ -447,4 +413,11 @@ export default () => {
     );
 }
 
+export default () => {
+    const { workflowId } = useParams();
 
+    if (!workflowId)
+        return null;
+
+    return <WorkflowPage workflowId={workflowId}/>
+}

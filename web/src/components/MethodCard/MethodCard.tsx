@@ -228,7 +228,11 @@ const getTypeName = (type: Type) => {
 
 
 const getMethodUsage = (agent: Agent, method: Method) => {
-    return `${method.name} = ywpi.get_method("${agent.id}", "${method.name}")`
+    return `
+import ywpi
+
+${method.name} = ywpi.get_method("${agent.id}", "${method.name}")
+`.trim();
 }
 
 
@@ -265,9 +269,9 @@ export default function MethodCard({ agent, method, onStart, defaultValues, borr
             <Box display={'flex'} flexDirection={'column'}>
                 <Typography fontWeight={600} variant="h3">{method.name}</Typography>
                 <Typography color="grey" variant='body2'>{method.description}</Typography>
+                <Typography variant='body2'>Usage:</Typography>
                 <Box sx={{ backgroundColor: '#f3f3f3', padding: '0.3rem' }} borderRadius={'4px'}>
-                    <Typography variant='body2'># Usage:</Typography>
-                    <Typography variant='body2'>
+                    <Typography variant='body2' whiteSpace={'pre-wrap'}>
                         {getMethodUsage(agent, method)}
                     </Typography>
                 </Box>

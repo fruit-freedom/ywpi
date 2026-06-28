@@ -35,4 +35,4 @@ def completition(fn: CompletitionFnT):
         return_annotation=CompletitionOutputs
     )
 
-    return ywpi.method(wrapper, labels=["contexts/completition"])
+    return ywpi.method(wrapper, labels=["contexts.completition"])

@@ -15,7 +15,7 @@ const Modal = (props: ModalProps) => {
                 justifyContent={'center'}
                 height={'100vh'}
             >
-                <Stack bgcolor={'#fff'} borderRadius={'4px'} padding={'3rem'} gap={4}>
+                <Stack bgcolor={'#fff'} borderRadius={'4px'} padding={'3rem'} gap={4} minWidth={"50rem"}>
                     {props.children}
                 </Stack>
             </Stack>

@@ -24,7 +24,8 @@ export interface UserPresetsStateStore extends UserPresetsState {
 }
 
 export const useUserPresets = create<UserPresetsStateStore>((set) => ({
-    ...loadState(),
+    // ...loadState(),
+
     setCompletitionMethod: (completitionMethod?: MethodWithAgent) => set((state: UserPresetsStateStore) => {
         const newState = { ...state, completitionMethod };
         saveState(newState);

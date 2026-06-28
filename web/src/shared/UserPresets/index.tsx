@@ -3,12 +3,20 @@ import { useAgents } from "../../store/store";
 import { useUserPresets } from "./store";
 import AgentTaskBlock from "./AgentTaskBlock";
 import CompletitionBlock from "./CompletitionBlock";
+import { useEffect } from "react";
+import { getAgentTaskMethod, getCompletitionMethod } from "../../entities/agent/lib";
 
 
 const UserPresets = () => {
     const { agents } = useAgents();
 
     const { completitionMethod, setCompletitionMethod, agentTaskMethod, setAgentTaskMethod } = useUserPresets();
+
+    useEffect(() => {
+        // Automatically detect methods using labels
+        setAgentTaskMethod(getAgentTaskMethod(agents));
+        setCompletitionMethod(getCompletitionMethod(agents));
+    }, [agents]);
 
     return (
         <>

@@ -1,21 +1,33 @@
 import typing as t
 import traceback
+# import asyncio
 
 import fastapi
 import pydantic
 from bson import ObjectId
 
-from ..db import contexts_collection
-from server.apply_update import apply_context_update
+# from server import hub_models
+
+# from ..db import contexts_collection
 from server.hub_service import hub
 
 
-from server.repositories.contexts import Context, Label, Subscribtion, set_subscribtions
+from server.repositories.contexts import Context, Label, Subscribtion, contexts_repository
+from server.services.contexts_service import contexts_service
+
+"""
+Iterfaces:
+
+
+- TaskPerform
+- ContextSubscribtion
+"""
 
 
 async def lifespan(app: fastapi.FastAPI):
     async with hub.lifespan():
-        yield
+        async with contexts_service:
+            yield
 
 
 router = fastapi.APIRouter(lifespan=lifespan)
@@ -29,56 +41,23 @@ async def create_context(
     name: t.Annotated[t.Optional[str], fastapi.Body()] = None,
     labels: t.Annotated[t.Optional[list[Label]], fastapi.Body()] = [],
 ) -> Context:
-    print('Creating context', tp, data, project_id, labels)
+    context = Context(
+        tp=tp,
+        data=data,
+        project_id=project_id,
+        labels=labels,
+        name=name
+    )
 
-    result = await contexts_collection.insert_one({
-        'tp': tp,
-        'data': data,
-        'project_id': ObjectId(project_id),
-        'labels': [l.model_dump(mode='json') for l in labels],
-        "name": name
-    })
-
-    return Context.model_validate(await contexts_collection.find_one({ '_id': result.inserted_id }))
+    return await contexts_service.create(context)
 
 
 @router.get('/api/projects/{project_id}/contexts/{context_id}', tags=['contexts'])
 async def get_context(project_id: str, context_id: str) -> Context:
-    context = await contexts_collection.find_one({ '_id': ObjectId(context_id) })
-
-    if context is None:
+    try:
+        return await contexts_service.get(context_id)
+    except:
         raise fastapi.HTTPException(status_code=404)
-
-    return context
-
-
-WORD_TO_DKEY = {
-    'type': 'type',
-    'tp': 'type'
-}
-
-
-def query_to_filter(q: str):    
-    tokens = q.split()
-    filters = []
-    for t in tokens:
-        equasion_splits = t.split('=')
-        if len(equasion_splits) > 1: # key=value
-            if equasion_splits[0] not in WORD_TO_DKEY:
-                filters.append({
-                    'labels.name': equasion_splits[0],
-                    'labels.value': equasion_splits[1]
-                })
-            else:
-                filters.append({
-                    WORD_TO_DKEY[equasion_splits[0]]: equasion_splits[1],
-                })
-        else: # Label
-            filters.append({
-                'labels.name': equasion_splits[0],
-            })
-    print(filters)
-    return filters
 
 
 @router.get('/api/projects/{project_id}/contexts', tags=['contexts'])
@@ -86,35 +65,46 @@ async def get_contexts_list(
     project_id: str,
     q: t.Optional[str] = None
 ) -> list[Context]:
-    additioanl_filters = { }
-
-    if q is not None:
-        additioanl_filters['$and'] = query_to_filter(q)
-
-    return await contexts_collection.find({ 'project_id': ObjectId(project_id), **additioanl_filters }).sort({'_id': -1}).to_list(100)
+    contexts, count = await contexts_service.list_and_count(project_id, q)
+    return contexts
 
 
 @router.patch('/api/projects/{project_id}/contexts/{context_id}', tags=['contexts'])
 async def update_context(
     project_id: str,
     context_id: str,
-    labels: t.Annotated[t.Optional[list[Label]], fastapi.Body()] = [],
+    labels: t.Annotated[t.Optional[list[Label]], fastapi.Body()] = None,
     data: t.Annotated[t.Optional[dict], fastapi.Body()] = None,
-):
-    await contexts_collection.update_one({ '_id': ObjectId(context_id) }, {
-        '$push': {
-            'labels': {
-                '$each': [
-                    l.model_dump(mode='json')
-                    for l in labels
+) -> Context:
+    if data is not None:
+        raise fastapi.HTTPException(400, "data update does not implemented")
+
+    await contexts_service.update(
+        context_id,
+        {
+            '$set': {
+                'labels': [
+                    l.model_dump(mode='json') for l in labels
                 ]
             }
         }
-    })
+    )
+
+
+class CreateTraceBody(pydantic.BaseModel):
+    trace: str
+
+@router.post('/api/projects/{project_id}/contexts/{context_id}/traces', tags=['contexts'])
+async def add_trace(
+    project_id: str,
+    context_id: str,
+    body: CreateTraceBody
+):
+    await contexts_repository.add_trace(context_id, body.trace)
 
 
 @router.post('/api/projects/{project_id}/contexts/{context_id}/apply', tags=['contexts'])
-async def update_context(
+async def apply_update_to_context(
     project_id: str,
     context_id: str,
     update: t.Annotated[dict, fastapi.Body()] = None,
@@ -135,9 +125,14 @@ async def update_context(
     ```
     """
 
+    if shadow_update or subscribtions is not None:
+        raise fastapi.HTTPException(400, "shadow_update and subscribtions does not supported")
+
+    return await contexts_service.update(context_id, update)
+
     updated_context = None
     if subscribtions is not None:
-        updated_context = await set_subscribtions(context_id, subscribtions)
+        updated_context = await contexts_repository.set_subscribtions(context_id, subscribtions)
 
     if update is not None:
         updated_context = Context.model_validate(
@@ -167,7 +162,7 @@ async def update_context(
 
 @router.delete('/api/projects/{project_id}/contexts/{context_id}', tags=['contexts'])
 async def delete_context(project_id: str, context_id: str):
-    result = await contexts_collection.delete_one({ '_id': ObjectId(context_id) })
+    deleted = await contexts_service.delete(context_id)
 
-    if result.deleted_count <= 0:
+    if not deleted:
         raise fastapi.HTTPException(status_code=404)

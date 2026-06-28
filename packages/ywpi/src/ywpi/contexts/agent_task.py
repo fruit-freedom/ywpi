@@ -40,4 +40,4 @@ def agent_task(fn: TaskAgentFnT):
         return_annotation=AgentTaskOutputs
     )
 
-    return ywpi.method(wrapper, labels=["contexts/agent_task"])
+    return ywpi.method(wrapper, labels=["contexts.agent_task"])

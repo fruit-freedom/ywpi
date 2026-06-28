@@ -1,5 +1,5 @@
-from aio_pika import connect
-from aio_pika.abc import AbstractIncomingMessage, ExchangeType
+from aio_pika import connect, ExchangeType
+from aio_pika.abc import AbstractIncomingMessage
 from bson import ObjectId
 import traceback
 
@@ -8,9 +8,9 @@ from .db import agents_collection, tasks_collection, objects_collection
 from .subscribers import SUBSCRIBERS
 from . import models
 
-from .db import objects_collection, contexts_collection
+from .db import objects_collection
 from .routes.objects import create_object, Relation, Label
-
+from server.repositories.contexts import contexts_repository
 
 def object_from_output(value):
     if isinstance(value, str):
@@ -86,8 +86,6 @@ async def update_outputs_object(data: models.TaskUpdatedData):
         traceback.print_exc()
 
 
-from server.apply_update import apply_context_update
-
 async def handle_context_update_event(data: models.TaskUpdatedData):
     """
     {
@@ -108,10 +106,6 @@ async def handle_context_update_event(data: models.TaskUpdatedData):
 
         type, data = data.outputs.get("type"), data.outputs.get("data")
         if not isinstance(type, str) or type != "ContextUpdate" or not isinstance(data, dict):
-            print(type, data)
-            print("isinstance(type, set)", isinstance(type, str))
-            print("type", type)
-            print("isinstance(data, dict)", isinstance(data, dict))
             return
 
         update = data.get("update")
@@ -128,7 +122,7 @@ async def handle_context_update_event(data: models.TaskUpdatedData):
             print('Warning: context_id should be str and specified')
             return
 
-        await apply_context_update(context_id, update)
+        await contexts_repository.apply_context_update(context_id, update)
 
         # mongo_update = {
         #     '$push': update.get('$push', {}),
@@ -146,18 +140,20 @@ async def handle_event(event: models.Event):
     if domain == 'agent':
         if kind == 'connected':
             data = models.AgentConnectedData.model_validate(event.data)
-            print('datadata', data)
-            agents_collection.update_one({ 'id': data.id }, { '$set': data.model_dump(mode='json') }, upsert=True)
+            await agents_collection.update_one({ 'id': data.id }, { '$set': data.model_dump(mode='json') }, upsert=True)
+            # print('-' * 50)
+            # print(data.model_dump(mode='json'))
+            # print('-' * 50)
         elif kind == 'disconnected':
             data = models.AgentDisconnectedData.model_validate(event.data)
-            agents_collection.update_one({ 'id': data.id }, { '$set': { 'status': 'disconnected' } })
+            await  agents_collection.update_one({ 'id': data.id }, { '$set': { 'status': 'disconnected' } })
     elif domain == 'task':
         if kind == 'created':
             data = models.TaskCreatedData(**event.data)
             data = data.model_dump(mode='json')
 
             id = data.pop('id')
-            tasks_collection.update_one({ '_id': id }, {
+            await tasks_collection.update_one({ '_id': id }, {
                 '$set': data
             }, upsert=True)
 
@@ -166,13 +162,13 @@ async def handle_event(event: models.Event):
             update = data.model_dump(mode='json', exclude_none=True)
             id = update.pop('id')
             if data.outputs is not None:
-                tasks_collection.update_one({ '_id': id }, { '$set': {
-                        f'outputs.{k}': v
-                        for k, v in data.outputs.items()
+                await tasks_collection.update_one({ '_id': id }, { '$set': {
+                    f'outputs.{k}': v
+                    for k, v in data.outputs.items()
                 }})
             if data.status is not None:
-                tasks_collection.update_one({ '_id': id }, { '$set': {
-                        'status': data.status
+                await tasks_collection.update_one({ '_id': id }, { '$set': {
+                    'status': data.status
                 }})
             # await create_objects_from_event_data(data)
             await handle_context_update_event(data)
@@ -181,7 +177,7 @@ async def handle_event(event: models.Event):
             data = models.TaskCompletedData(**event.data)
             update = data.model_dump(mode='json', exclude_none=True)
             id = update.pop('id')
-            tasks_collection.update_one({ '_id': id }, { '$set': update })
+            await tasks_collection.update_one({ '_id': id }, { '$set': update })
 
 
 async def consume_events() -> None:
@@ -193,7 +189,8 @@ async def consume_events() -> None:
 
         # Creating a channel
         channel = await connection.channel()
-        exchange = await channel.declare_exchange(RQ_EXCHANGE_NAME, ExchangeType.TOPIC)
+        exchange = await channel.declare_exchange(RQ_EXCHANGE_NAME, type=ExchangeType.TOPIC)
+        # TODO: Add declare_exchange
 
         # Declaring queue (Queue MUST be durable for preventing events disappearing)
         queue = await channel.declare_queue('server.queue', durable=True)

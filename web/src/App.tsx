@@ -19,6 +19,7 @@ import ChatPage from "./pages/ChatPage/index.tsx";
 import { ContextPage } from "./pages/ContextPage/index.tsx";
 import { setNavigateRef } from "./navigate.ts";
 import WorkflowPage from "./pages/WorkflowPage/index.tsx";
+import WorkflowsPage from "./pages/WorkflowsPage/index.tsx";
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
     'pdfjs-dist/build/pdf.worker.min.mjs',
@@ -30,8 +31,10 @@ function Layout() {
     setNavigateRef(navigate);
 
     return (
-        <Box>
-            {/* <Header /> */}
+        <Box
+            height={"100vh"}
+        >
+            <Header />
             <Outlet />
         </Box>
     );
@@ -78,9 +81,13 @@ const router = createBrowserRouter([
                 element: <ContextPage />
             },
             {
-                path: '/wf',
+                path: '/workflows/:workflowId',
                 element: <WorkflowPage />
-            }
+            },
+            {
+                path: '/workflows',
+                element: <WorkflowsPage />
+            },
         ]
     }
 ]);

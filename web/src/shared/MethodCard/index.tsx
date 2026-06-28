@@ -11,7 +11,7 @@ interface MethodCardProps {
 export const MethodCardSmall = ({ method, PaperProps, onClick }: MethodCardProps) => {
     return (
         <Paper {...PaperProps} onClick={onClick}>
-            <Stack padding={1} direction={'row'} justifyContent={'space-between'} width={"20rem"}>
+            <Stack padding={1} direction={'row'} justifyContent={'space-between'}>
                 <Stack gap={1}>
                     <Typography>{method.agentId} / {method.name}</Typography>
                     <Typography sx={{ color: 'grey' }} variant="body2">

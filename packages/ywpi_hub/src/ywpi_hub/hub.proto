@@ -34,9 +34,9 @@ enum Rpc {
     RPC_UNDEFINED = 0;
     RPC_REGISTER_AGENT = 1; // Agent
     RPC_HEARTBEAT_AGENT = 2; // Agent
-    RPC_START_TASK = 3; // Hub
+    RPC_START_TASK = 3; // Hub <-> Agent
     RPC_ABORT_TASK = 4; // Hub
-    RPC_UPDATE_TASK = 5; // Agent
+    RPC_UPDATE_TASK = 5; // Agent -> Hub or Hub -> Agent
 }
 
 message RequestMessage {

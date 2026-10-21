@@ -222,7 +222,7 @@ class Hub(hub_pb2_grpc.HubServicer):
     async def RunTask(self, request: hub_pb2.PushTaskRequest, context: grpc.ServicerContext):
         try:
             agent = agents.get(request.agent_id)
-            created_task, future = await tasks.add_with_tracking(request.agent_id, request.method, json.loads(request.params))
+            created_task, future = await tasks.add_with_result_subscription(request.agent_id, request.method, json.loads(request.params))
 
             response = await agent.connector.start_task(hub_models.StartTaskRequest(
                 id=created_task.id,

@@ -59,6 +59,7 @@ class StartTaskRequest(pydantic.BaseModel):
 
 class StartTaskResponse(pydantic.BaseModel):
     status: str = 'success'
+    task_id: t.Optional[str] = None
 
 
 class StartTrackinTaskResponse(pydantic.BaseModel):

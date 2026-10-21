@@ -119,8 +119,13 @@ async def run_agent(input_channel: SyncChannel, output_channel: SyncChannel, age
 
 
 @asynccontextmanager
-async def create_app_with_agents(agents: list[Agent]) -> t.AsyncGenerator[HubApp, None]:
+async def create_app_with_agents(
+    agents: list[Agent],
+    on_start_task: t.Callable[[str, dict], t.Awaitable[dict]] | None = None,
+) -> t.AsyncGenerator[HubApp, None]:
     app = HubApp()
+    if on_start_task is not None:
+        app.on_start_task(on_start_task)
     await app._init()
     input_channel, output_channel = await create_channels(app)
     agents_task = [

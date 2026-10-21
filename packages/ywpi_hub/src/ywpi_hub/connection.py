@@ -116,7 +116,7 @@ class Connection:
         try:
             return await asyncio.wait_for(future, timeout=10.0)
         finally:
-            # TODO: Remove future from `_outgoings_requests`
+            self._outgoings_requests.pop(reply_to, None)
             logger.debug(f'Rpc "{hub_pb2.Rpc.Name(rpc)}" finished')
 
     async def close(self):
@@ -129,10 +129,12 @@ class AgentCommunicator:
         connection: Connection,
         tasks_repository: TaskRepository,
         agents_repository: AgentRepository,
+        on_start_task: t.Callable[[str, dict], t.Awaitable[dict]] | None = None,
     ):
         self._connection = connection.with_request_callback(self._handle_reuest_cb)
         self._tasks_repository = tasks_repository
         self._agents_repository = agents_repository
+        self._on_start_task = on_start_task
         self._agent_description = None
 
     async def _handle_reuest_cb(self, request: hub_pb2.RequestMessage) -> hub_pb2.ResponseMessage | None:
@@ -145,10 +147,10 @@ class AgentCommunicator:
                 response = await self._rpc_update_task(
                     hub_models.UpdateTaskRequest.model_validate_json(request.payload)
                 )
-            # elif request.rpc == hub_pb2.Rpc.RPC_START_TASK:
-            #     response = await self._rpc_start_task( # Start self task (tracking)
-            #         hub_models.StartTaskRequest.model_validate_json(request.payload)
-            #     )
+            elif request.rpc == hub_pb2.Rpc.RPC_START_TASK:
+                response = await self._rpc_start_task(
+                    hub_models.StartTaskRequest.model_validate_json(request.payload)
+                )
             else:
                 raise NotImplementedError(f'rpc {hub_pb2.Rpc.Name(request.rpc)} not implemented')
 
@@ -181,16 +183,59 @@ class AgentCommunicator:
 
         return hub_models.UpdateTaskResponse()
 
-    # async def _rpc_start_task(self, payload: hub_models.StartTaskRequest) -> hub_models.StartTaskResponse:
-    #     """Start self task (tracking)"""
-    #     if self._agent_description is None:
-    #         raise RuntimeError('Agent not registered')
+    async def _rpc_start_task(self, payload: hub_models.StartTaskRequest) -> hub_models.StartTaskResponse:
+        if self._agent_description is None:
+            raise RuntimeError('Agent not registered')
+        if self._on_start_task is None:
+            raise RuntimeError('Hub start task callback is not registered')
 
-    #     task = await tasks.add(self.agent_id, method=payload.method, inputs=payload.params)
-    #     print('Created task', task)
+        task = await self._tasks_repository.add(
+            self._agent_description.id,
+            payload.method,
+            payload.params,
+        )
+        asyncio.create_task(self._execute_hub_task(task.id, payload.method, payload.params))
+        return hub_models.StartTaskResponse(task_id=task.id)
 
-    #     # TODO: Return task ID
-    #     return hub_models.StartTrackinTaskResponse(id=task.id)
+    async def _execute_hub_task(self, task_id: str, method_name: str, inputs: dict):
+        error = None
+        outputs = None
+        status = 'completed'
+        try:
+            outputs = await self._on_start_task(method_name, inputs)
+            if outputs is not None and not isinstance(outputs, dict):
+                raise TypeError('Hub start task callback must return a dict or None')
+        except BaseException as e:
+            status = 'failed'
+            error = hub_models.Error(type=type(e).__name__, traceback=traceback.format_exc())
+
+        try:
+            if outputs:
+                await self._tasks_repository.update_outputs(task_id, outputs)
+            await self._tasks_repository.update_status(task_id, status, error)
+            await self._send_task_update(task_id, status, outputs, error)
+        except BaseException:
+            logger.warning(f'Hub task "{task_id}" completion error: {traceback.format_exc()}')
+
+    async def _send_task_update(
+        self,
+        task_id: str,
+        status: str,
+        outputs: dict | None,
+        error: hub_models.Error | None,
+    ):
+        try:
+            await self._connection.call(
+                hub_pb2.Rpc.RPC_UPDATE_TASK,
+                hub_models.UpdateTaskRequest(
+                    id=task_id,
+                    status=status,
+                    outputs=outputs,
+                    error=error,
+                ).model_dump_json(),
+            )
+        except BaseException:
+            logger.warning(f'Could not deliver update for hub task "{task_id}": {traceback.format_exc()}')
 
     async def start_task(self, payload: hub_models.StartTaskRequest) -> hub_models.StartTaskResponse:
         if self._agent_description is None:

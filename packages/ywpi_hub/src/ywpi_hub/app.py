@@ -76,7 +76,12 @@ class Hub(hub_pb2_grpc.HubServicer):
         connection = Connection(request_iterator)
 
         # Possibly leak agent
-        agent = AgentCommunicator(connection, self.tasks_respository, self.agents_repository)
+        agent = AgentCommunicator(
+            connection,
+            self.tasks_respository,
+            self.agents_repository,
+            on_start_task=getattr(self, '_start_task_callback', None),
+        )
 
         try:
             async for message in connection.output_channel:
@@ -121,7 +126,7 @@ class Hub(hub_pb2_grpc.HubServicer):
             silent = request.HasField("silent") and request.silent
 
             agent = self.agents_repository.get(request.agent_id)
-            created_task, future = await self.tasks_respository.add_with_tracking(
+            created_task, future = await self.tasks_respository.add_with_result_subscription(
                 request.agent_id,
                 request.method,
                 json.loads(request.params),
@@ -198,7 +203,7 @@ class Hub(hub_pb2_grpc.HubServicer):
             else:
                 referenced_inputs[input_name] = input_value
 
-        created_task, future = await self.tasks_respository.add_with_tracking(agent_id, method_name, referenced_inputs)
+        created_task, future = await self.tasks_respository.add_with_result_subscription(agent_id, method_name, referenced_inputs)
         response = await agent.connector.start_task(hub_models.StartTaskRequest(
             id=created_task.id,
             method=method_name,
@@ -215,6 +220,56 @@ class Hub(hub_pb2_grpc.HubServicer):
             )
             raise exception
         return task.outputs
+
+    async def execute_method_stream(
+        self,
+        agent_id: str,
+        method_name: str,
+        inputs: dict,
+    ) -> t.AsyncIterator[dict[str, t.Any]]:
+        """Execute an agent method and yield output chunks as they arrive."""
+        agent = self.agents_repository.get(agent_id)
+
+        referenced_inputs = {}
+        attachments = {}
+        context = {"attachments": attachments}
+        for input_name, input_value in inputs.items():
+            if isinstance(input_value, pydantic.BaseModel):
+                referenced_inputs[input_name] = input_value.model_dump(mode="json", context=context)
+            else:
+                referenced_inputs[input_name] = input_value
+
+        created_task, queue = await self.tasks_respository.add_with_events_subscription(
+            agent_id,
+            method_name,
+            referenced_inputs,
+        )
+
+        try:
+            await agent.connector.start_task(hub_models.StartTaskRequest(
+                id=created_task.id,
+                method=method_name,
+                params=referenced_inputs,
+                attachments=attachments,
+            ))
+
+            while True:
+                event = await queue.get()
+                if event.outputs is not None:
+                    yield event.outputs
+
+                if event.status is None:
+                    continue
+                if event.status == "failed":
+                    error = event.error
+                    raise hub_models.YwpiException.from_data(
+                        type=error.type if error is not None else "MethodExecutionError",
+                        data=error.data if error is not None else None,
+                        traceback=error.traceback if error is not None else None,
+                    )
+                return
+        finally:
+            self.tasks_respository.remove_events_subscription(created_task.id)
 
     def _build_server(self):
         interceptors = []
@@ -289,6 +344,7 @@ class HubApp(Hub):
         self._callbacks: dict[
             t.Literal["agent_connected", "agent_disconnected", "task_event"], list
         ] = defaultdict(lambda: [])
+        self._start_task_callback: t.Callable[[str, dict], t.Awaitable[dict]] | None = None
 
     async def run(self):
         async with _default_lifespan():
@@ -307,6 +363,12 @@ class HubApp(Hub):
 
     def on_agent_disconnected(self, func):
         self._callbacks['agent_disconnected'].append(func)
+        return func
+
+    def on_start_task(self, func):
+        if self._start_task_callback is not None:
+            raise RuntimeError('Hub start task callback is already registered')
+        self._start_task_callback = func
         return func
 
     async def _init(self):

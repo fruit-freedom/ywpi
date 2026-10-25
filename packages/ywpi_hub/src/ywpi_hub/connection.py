@@ -11,13 +11,32 @@ from ywpi_hub.tasks_respository import TaskRepository
 from ywpi_hub.agents_repository import AgentRepository
 
 
+def _resolve_attachments(value: t.Any, attachments: t.Mapping[str, bytes]) -> t.Any:
+    if isinstance(value, dict):
+        if set(value) == {"$attachment"}:
+            return attachments[value["$attachment"]]
+        return {
+            key: _resolve_attachments(item, attachments)
+            for key, item in value.items()
+        }
+    if isinstance(value, list):
+        return [_resolve_attachments(item, attachments) for item in value]
+    return value
+
+
 class Connection:
     def __init__(
         self,
         input_channel: t.AsyncIterable[hub_pb2.Message],
-        # handle_request_cb: t.Callable[[hub_pb2.RequestMessage], t.Awaitable[hub_pb2.ResponseMessage | None]]
+        # handle_request_cb: t.Callable[..., t.Awaitable[hub_pb2.ResponseMessage | None]]
     ) -> None:
-        self._handle_request_cb = t.Callable[[hub_pb2.RequestMessage], t.Awaitable[hub_pb2.ResponseMessage | None]] | None
+        self._handle_request_cb = (
+            t.Callable[
+                [hub_pb2.RequestMessage, t.Mapping[str, bytes]],
+                t.Awaitable[hub_pb2.ResponseMessage | None],
+            ]
+            | None
+        )
         self._input_channel = input_channel
         # Exposed to connection clients
         self.output_channel: aiochannel.Channel[hub_pb2.Message] = aiochannel.Channel()
@@ -26,7 +45,10 @@ class Connection:
 
     def with_request_callback(
         self,
-        handle_request_cb: t.Callable[[hub_pb2.RequestMessage], t.Awaitable[hub_pb2.ResponseMessage | None]]
+        handle_request_cb: t.Callable[
+            [hub_pb2.RequestMessage, t.Mapping[str, bytes]],
+            t.Awaitable[hub_pb2.ResponseMessage | None],
+        ]
     ):
         """
             Trigger connection to consuming incoming messages.
@@ -66,9 +88,14 @@ class Connection:
         )
         logger.debug(f'Write response message "{reply_to}"')
 
-    async def _handle_request(self, reply_to: str, request: hub_pb2.RequestMessage):
+    async def _handle_request(
+        self,
+        reply_to: str,
+        request: hub_pb2.RequestMessage,
+        attachments: t.MutableMapping[str, bytes],
+    ):
         try:
-            response = await self._handle_request_cb(request)
+            response = await self._handle_request_cb(request, attachments)
 
             if response is not None:
                 await self._write_response_message(reply_to=reply_to, message=response)
@@ -101,7 +128,7 @@ class Connection:
                     await self._handle_response(message.reply_to, attr)
                 elif isinstance(attr, hub_pb2.RequestMessage):
                     logger.info(f'Recieve rpc "{hub_pb2.Rpc.Name(attr.rpc)}"')
-                    await self._handle_request(message.reply_to, attr)
+                    await self._handle_request(message.reply_to, attr, message.attachments)
                 else:
                     logger.warning(f'Recieved unexpected message type {type(attr)}')
         except:
@@ -137,7 +164,12 @@ class AgentCommunicator:
         self._on_start_task = on_start_task
         self._agent_description = None
 
-    async def _handle_reuest_cb(self, request: hub_pb2.RequestMessage) -> hub_pb2.ResponseMessage | None:
+    async def _handle_reuest_cb(
+        self,
+        request: hub_pb2.RequestMessage,
+        attachments: t.MutableMapping[str, bytes] | None = None,
+    ) -> hub_pb2.ResponseMessage | None:
+        attachments = attachments or {}
         try:
             if request.rpc == hub_pb2.Rpc.RPC_REGISTER_AGENT:
                 response = await self._rpc_register_agent(
@@ -145,7 +177,8 @@ class AgentCommunicator:
                 )
             elif request.rpc == hub_pb2.Rpc.RPC_UPDATE_TASK:
                 response = await self._rpc_update_task(
-                    hub_models.UpdateTaskRequest.model_validate_json(request.payload)
+                    hub_models.UpdateTaskRequest.model_validate_json(request.payload),
+                    attachments,
                 )
             elif request.rpc == hub_pb2.Rpc.RPC_START_TASK:
                 response = await self._rpc_start_task(
@@ -171,12 +204,19 @@ class AgentCommunicator:
         logger.debug(f'Agent "{payload.id}" methods: {payload.methods}')
         return hub_models.RegisterAgentResponse()
 
-    async def _rpc_update_task(self, payload: hub_models.UpdateTaskRequest) -> hub_models.UpdateTaskResponse:
+    async def _rpc_update_task(
+        self,
+        payload: hub_models.UpdateTaskRequest,
+        attachments: t.MutableMapping[str, bytes] | None = None,
+    ) -> hub_models.UpdateTaskResponse:
         if self._agent_description is None:
             raise RuntimeError('Agent not registered')
 
         if payload.outputs is not None:
-            await self._tasks_repository.update_outputs(payload.id, payload.outputs)
+            await self._tasks_repository.update_outputs(
+                payload.id,
+                _resolve_attachments(payload.outputs, attachments or {}),
+            )
 
         if payload.status is not None:
             await self._tasks_repository.update_status(payload.id, payload.status, payload.error)

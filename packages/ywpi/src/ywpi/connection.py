@@ -1,4 +1,5 @@
 from concurrent import futures
+import typing as t
 
 import pydantic
 
@@ -21,5 +22,6 @@ class AbstractConnection:
 
     def call_update_task(
         self,
-        payload: hub_models.UpdateTaskRequest
+        payload: hub_models.UpdateTaskRequest,
+        attachments: t.MutableMapping[str, bytes] | None = None,
     ) -> futures.Future[hub_pb2.ResponseMessage]: raise NotImplementedError()

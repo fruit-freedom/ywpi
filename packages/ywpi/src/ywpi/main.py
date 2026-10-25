@@ -251,14 +251,21 @@ class Exchanger:
         self.thr = threading.Thread(target=self._reader)
         self.thr.start()
 
-    def _write_request_message(self, rpc: hub_pb2.Rpc, payload: str, reply_to: str):
+    def _write_request_message(
+        self,
+        rpc: hub_pb2.Rpc,
+        payload: str,
+        reply_to: str,
+        attachments: typing.MutableMapping[str, bytes] | None = None,
+    ):
         self.output_channel.push(
             hub_pb2.Message(
                 reply_to=reply_to,
                 request=hub_pb2.RequestMessage(
                     rpc=rpc,
                     payload=payload
-                )
+                ),
+                attachments=attachments or {},
             )
         )
 
@@ -347,21 +354,34 @@ class Exchanger:
             with self.outgoings_requests_lock:
                 [ f.set_exception(error) for f in self.outgoings_requests.values() ]
 
-    def call(self, rpc: hub_pb2.Rpc, payload: pydantic.BaseModel) -> futures.Future[hub_pb2.ResponseMessage]:
+    def call(
+        self,
+        rpc: hub_pb2.Rpc,
+        payload: pydantic.BaseModel,
+        attachments: typing.MutableMapping[str, bytes] | None = None,
+    ) -> futures.Future[hub_pb2.ResponseMessage]:
         reply_to = str(uuid.uuid4())
         logger.debug(f'[RPC] call (start): "{hub_pb2.Rpc.Name(rpc)}" MID: "{reply_to}" payload: "{payload}"')
         future = futures.Future()
         with self.outgoings_requests_lock:
             self.outgoings_requests[reply_to] = future
-        self._write_request_message(rpc, payload, reply_to)
+        self._write_request_message(rpc, payload, reply_to, attachments=attachments)
         logger.debug(f'[RPC] call: "{hub_pb2.Rpc.Name(rpc)}" MID: "{reply_to}" payload: "{payload}"')
         return future
 
     def call_register_agent(self, payload: hub_models.RegisterAgentRequest):
         return self.call(hub_pb2.Rpc.RPC_REGISTER_AGENT, payload.model_dump_json())
 
-    def call_update_task(self, payload: hub_models.UpdateTaskRequest):
-        return self.call(hub_pb2.Rpc.RPC_UPDATE_TASK, payload.model_dump_json())
+    def call_update_task(
+        self,
+        payload: hub_models.UpdateTaskRequest,
+        attachments: typing.MutableMapping[str, bytes] | None = None,
+    ):
+        return self.call(
+            hub_pb2.Rpc.RPC_UPDATE_TASK,
+            payload.model_dump_json(),
+            attachments=attachments,
+        )
 
 
 

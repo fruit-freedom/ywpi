@@ -61,15 +61,18 @@ def deserial(fn):
     return fn
 
 
-def handle_outputs(data: t.Any) -> dict[str, t.Any]:
+def handle_outputs(
+    data: t.Any,
+    context: dict[str, t.Any] | None = None,
+) -> dict[str, t.Any]:
     if isinstance(data, dict):
         return data
     elif isinstance(data, (list, tuple, set)):
         return {
-            '__others__': [ handle_outputs(d) for d in data ]
+            '__others__': [handle_outputs(d, context=context) for d in data]
         }
     elif isinstance(data, pydantic.BaseModel):
-        return data.model_dump(mode='json')
+        return data.model_dump(mode='json', context=context)
     elif dataclasses.is_dataclass(data):
         return dataclasses.asdict(data)
     elif type(data) in SERIALIZERS:

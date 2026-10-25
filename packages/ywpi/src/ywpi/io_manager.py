@@ -67,8 +67,14 @@ class IOManager:
         """
         Handle method outputs.
         """
+        attachments = {}
+        context = {"attachments": attachments}
         return self._connection.call_update_task(
-            hub_models.UpdateTaskRequest(id=self._task_id, outputs=serialization.handle_outputs(outputs))
+            hub_models.UpdateTaskRequest(
+                id=self._task_id,
+                outputs=serialization.handle_outputs(outputs, context=context),
+            ),
+            attachments=attachments,
         )
 
     def handle_inputs(self, inputs: dict[str, t.Any], attachments: t.MutableMapping[str, dict]) -> dict[str, t.Any]:
@@ -84,18 +90,24 @@ class IOManager:
 
     def update_task_status(self, status: str, final_outputs: dict = None, error: hub_models.Error = None):
         outputs = None
+        attachments = {}
         try:
-            outputs = serialization.handle_outputs(final_outputs) if final_outputs is not None else None
+            if final_outputs is not None:
+                context = {"attachments": attachments}
+                outputs = serialization.handle_outputs(final_outputs, context=context)
         except:
             logger.warning(f'Error while converting final task outputs: {traceback.format_exc()}')
             status = 'failed'
 
-        return self._connection.call_update_task(hub_models.UpdateTaskRequest(
-            id=self._task_id,
-            status=status,
-            outputs=outputs,
-            error=error
-        ))
+        return self._connection.call_update_task(
+            hub_models.UpdateTaskRequest(
+                id=self._task_id,
+                status=status,
+                outputs=outputs,
+                error=error,
+            ),
+            attachments=attachments,
+        )
 
     def append_stream(self, stream_id: str, init_items: list | None = None):
         with self._lock:

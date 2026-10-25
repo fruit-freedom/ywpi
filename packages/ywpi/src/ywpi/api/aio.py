@@ -86,14 +86,21 @@ class Connection:
     async def start(self):
         self._reader_task = asyncio.create_task(self._reader())
 
-    async def _write_request_message(self, rpc: hub_pb2.Rpc, payload: str, reply_to: str):
+    async def _write_request_message(
+        self,
+        rpc: hub_pb2.Rpc,
+        payload: str,
+        reply_to: str,
+        attachments: t.MutableMapping[str, bytes] | None = None,
+    ):
         self.output_channel.put_nowait(
             hub_pb2.Message(
                 reply_to=reply_to,
                 request=hub_pb2.RequestMessage(
                     rpc=rpc,
                     payload=payload
-                )
+                ),
+                attachments=attachments or {},
             )
         )
 
@@ -238,18 +245,31 @@ class Service(Connection):
         """
         raise NotImplementedError()
 
-    async def call(self, rpc: hub_pb2.Rpc, payload: pydantic.BaseModel) -> asyncio.Future[hub_pb2.ResponseMessage]:
+    async def call(
+        self,
+        rpc: hub_pb2.Rpc,
+        payload: pydantic.BaseModel,
+        attachments: t.MutableMapping[str, bytes] | None = None,
+    ) -> asyncio.Future[hub_pb2.ResponseMessage]:
         reply_to = str(uuid.uuid4())
         # logger.debug(f'[RPC] call (start): "{hub_pb2.Rpc.Name(rpc)}" MID: "{reply_to}" payload: "{payload}"')
         future = asyncio.Future()
         with self.outgoings_requests_lock: # Lock does bot required
             self.outgoings_requests[reply_to] = future
-        await self._write_request_message(rpc, payload, reply_to)
+        await self._write_request_message(rpc, payload, reply_to, attachments=attachments)
         logger.debug(f'[RPC] call: "{hub_pb2.Rpc.Name(rpc)}" MID: "{reply_to}" payload: "{payload}"')
         return future
 
     async def call_register_agent(self, payload: hub_models.RegisterAgentRequest):
         return await self.call(hub_pb2.Rpc.RPC_REGISTER_AGENT, payload.model_dump_json())
 
-    async def call_update_task(self, payload: hub_models.UpdateTaskRequest):
-        return await self.call(hub_pb2.Rpc.RPC_UPDATE_TASK, payload.model_dump_json())
+    async def call_update_task(
+        self,
+        payload: hub_models.UpdateTaskRequest,
+        attachments: t.MutableMapping[str, bytes] | None = None,
+    ):
+        return await self.call(
+            hub_pb2.Rpc.RPC_UPDATE_TASK,
+            payload.model_dump_json(),
+            attachments=attachments,
+        )

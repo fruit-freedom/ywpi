@@ -124,9 +124,10 @@ Serializer require context with *attachments* dictionary.
 
 
 def serialize_bytes_with_attachments_ctx(data: bytes, info: pydantic.SerializationInfo):
-    info.context["attachments"]["1"] = data
+    key = str(len(info.context["attachments"]))
+    info.context["attachments"][key] = data
     return {
-        "$attachment": "1"
+        "$attachment": key
     }
 
 

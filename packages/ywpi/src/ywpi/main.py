@@ -3,6 +3,7 @@ warnings.simplefilter("ignore", UserWarning)
 
 import threading
 from concurrent import futures
+from contextlib import nullcontext
 import inspect
 import typing
 import uuid
@@ -242,6 +243,12 @@ class Exchanger:
         self.agent_id = agent_id
         self.incoming_requests: dict[str, futures.Future] = {}
         self.outgoings_requests: dict[str, futures.Future] = {}
+        # Requests initiated by the agent against the hub.  The initial
+        # RPC_START_TASK response contains only the task id; the actual
+        # result is delivered later as RPC_UPDATE_TASK.
+        self.hub_task_results: dict[str, futures.Future] = {}
+        self.hub_task_updates: dict[str, hub_models.UpdateTaskRequest] = {}
+        self.hub_task_lock = threading.Lock()
 
         self.input_channel = input_channel
         self.output_channel = output_channel
@@ -293,15 +300,23 @@ class Exchanger:
 
     def _rpc_update_task(self, payload: hub_models.UpdateTaskRequest) -> hub_models.UpdateTaskResponse:
         """
-        Hub can update task status (task abort) & inputs (streaming)
+        Handle a result of a task started by the agent on the hub.
+
+        RPC_UPDATE_TASK is used in both directions.  Updates for tasks
+        created by the hub are handled by IOManager; updates for tasks
+        created by the agent are completed here.
         """
-        if payload.inputs is None:
-            raise TypeError('inputs should be specified')
+        with self.hub_task_lock:
+            result = self.hub_task_results.get(payload.id)
+            if result is None:
+                # The hub may send the update immediately after the start
+                # response.  Keep it until execute_hub_method registers the
+                # future for the returned task id.
+                self.hub_task_updates[payload.id] = payload
+            elif not result.done():
+                result.set_result(payload)
 
-        if payload.status is not None:
-            raise NotImplementedError()
-
-        self.service.update_task_inputs(payload.id, payload.inputs)
+        return hub_models.UpdateTaskResponse()
 
     def _handle_request(self, reply_to: str, request: hub_pb2.RequestMessage, attachments: typing.MutableMapping[str, bytes]):
         try:
@@ -309,6 +324,14 @@ class Exchanger:
                 model_request = hub_models.StartTaskRequest.model_validate_json(request.payload)
                 model_request.attachments = attachments
                 response = self._rpc_start_task(model_request)
+                self._write_response_message(
+                    reply_to,
+                    response.model_dump_json(),
+                )
+            elif request.rpc == hub_pb2.Rpc.RPC_UPDATE_TASK:
+                response = self._rpc_update_task(
+                    hub_models.UpdateTaskRequest.model_validate_json(request.payload)
+                )
                 self._write_response_message(
                     reply_to,
                     response.model_dump_json(),
@@ -353,6 +376,8 @@ class Exchanger:
         finally:
             with self.outgoings_requests_lock:
                 [ f.set_exception(error) for f in self.outgoings_requests.values() ]
+            with self.hub_task_lock:
+                [ f.set_exception(error) for f in self.hub_task_results.values() if not f.done() ]
 
     def call(
         self,
@@ -383,6 +408,60 @@ class Exchanger:
             attachments=attachments,
         )
 
+    def execute_hub_method(self, method_name: str, inputs: dict) -> dict:
+        """Synchronously execute a method registered on the hub."""
+        start_response = self.call(
+            hub_pb2.Rpc.RPC_START_TASK,
+            hub_models.StartTaskRequest(
+                id='',
+                method=method_name,
+                params=inputs,
+            ).model_dump_json(),
+        ).result()
+
+        if start_response.HasField('error'):
+            raise hub_models.MethodCallError(start_response.error)
+
+        start_task = hub_models.StartTaskResponse.model_validate_json(start_response.payload)
+        if start_task.task_id is None:
+            raise hub_models.MethodCallError(
+                'Hub did not return a task id for RPC_START_TASK'
+            )
+
+        result = futures.Future()
+        with self.hub_task_lock:
+            self.hub_task_results[start_task.task_id] = result
+            early_update = self.hub_task_updates.pop(start_task.task_id, None)
+            if early_update is not None:
+                result.set_result(early_update)
+
+        try:
+            update = result.result(timeout=10.0)
+        finally:
+            with self.hub_task_lock:
+                self.hub_task_results.pop(start_task.task_id, None)
+                self.hub_task_updates.pop(start_task.task_id, None)
+
+        if update.status == 'failed':
+            error = update.error
+            raise hub_models.YwpiException.from_data(
+                type=error.type if error is not None else 'MethodCallError',
+                data=error.data if error is not None else None,
+                traceback=error.traceback if error is not None else None,
+            )
+
+        return update.outputs or {}
+
+
+class Hub:
+    """Synchronous client for methods exposed by the connected hub."""
+
+    def __init__(self, exchanger: Exchanger):
+        self._exchanger = exchanger
+
+    def execute_hub_method(self, method_name: str, inputs: dict) -> dict:
+        return self._exchanger.execute_hub_method(method_name, inputs)
+
 
 
 grpc_channel_options = [
@@ -399,7 +478,8 @@ def serve(
     description: str = 'No description provided',
     project: str = settings.YWPI_PROJECT_NAME,
     ssl: bool = False,
-    api_key: str = None
+    api_key: str = None,
+    lifespan: typing.Callable[[Hub], typing.ContextManager] = None,
 ):
     """
     Authorization source priority:
@@ -442,7 +522,9 @@ def serve(
                 raise Exception()
 
             logger.info(f'Connected to hub {settings.YWPI_HUB_HOST}')
-            exchanger.finish.result()
+            hub = Hub(exchanger)
+            with (lifespan(hub) if lifespan is not None else nullcontext()):
+                exchanger.finish.result()
         except KeyboardInterrupt:
             pass
         except BaseException as e:

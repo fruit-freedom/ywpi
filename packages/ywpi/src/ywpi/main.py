@@ -20,6 +20,7 @@ from .logger import logger
 from . import settings
 from ywpi import RegisteredMethod, REGISTERED_METHODS
 from ywpi.handle_args import InputTyping
+from ywpi.handle_args import Type as PythonType
 from .io_manager import IOManager
 from .method_schemes import get_function_schema
 from ywpi.exceptions import get_exception_serialization_model
@@ -104,6 +105,16 @@ class Channel:
 
 
 class SimpleMethodExecuter:
+    @staticmethod
+    def _to_hub_type(type_: PythonType) -> hub_models.Type:
+        return hub_models.Type(
+            name=type_.name,
+            args=[
+                SimpleMethodExecuter._to_hub_type(argument)
+                for argument in (type_.args or [])
+            ],
+        )
+
     def __init__(self, registered_methods: dict[str, RegisteredMethod]) -> None:
         self.thread_pool = futures.ThreadPoolExecutor(max_workers=1)
 
@@ -123,9 +134,12 @@ class SimpleMethodExecuter:
                     # for input_name, input in registered_method.inputs.items()
                     hub_models.Field(
                         name=input_name,
-                        type=hub_models.Type(
-                            name=input.name,
-                            args=[hub_models.Type(name=a.name) for a in input.args]
+                        type=self._to_hub_type(
+                            PythonType(
+                                name=input.name,
+                                tp=input.source_tp,
+                                args=input.args,
+                            )
                         ),
                         description=input.description
                     )
@@ -134,10 +148,7 @@ class SimpleMethodExecuter:
                 outputs=[
                     hub_models.Field(
                         name=output_name,
-                        type=hub_models.Type(
-                            name=output.name,
-                            args=[hub_models.Type(name=arg.name) for arg in output.args] if output.args is not None else []
-                        )
+                        type=self._to_hub_type(output)
                     )
                     for output_name, output in registered_method.outputs.items()
                 ],

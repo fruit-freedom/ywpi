@@ -1,6 +1,7 @@
 import dataclasses
 import typing as t
 import inspect
+import types
 import pydantic
 import pydantic_core
 
@@ -68,6 +69,11 @@ class Type:
     name: str
     tp: t.Any
     args: t.Optional[list['Type']] = dataclasses.field(default_factory=list)
+
+
+def is_union_type(tp: t.Any) -> bool:
+    """Return whether *tp* is a ``typing.Union`` or PEP 604 union."""
+    return t.get_origin(tp) in (t.Union, types.UnionType)
 
 
 @dataclasses.dataclass
@@ -139,6 +145,22 @@ def get_input_dict(fn) -> dict[str, InputTyping]:
             )
         else:
             target_tp = tp
+
+            # Keep the complete union annotation.  Reducing it to its origin
+            # (typing.Union/types.UnionType) loses the concrete alternatives
+            # and makes both registration and deserialization impossible.
+            if is_union_type(tp):
+                input_type = handle_tp(tp)
+                inputs_dict[name] = InputTyping(
+                    name=input_type.name,
+                    source_tp=tp,
+                    target_tp=tp,
+                    optional=optional,
+                    args=input_type.args,
+                    description=description
+                )
+                continue
+
             # TODO: There probaly required deserialize subtypes (generic args)
             if t.get_origin(target_tp) is not None:
                 target_tp = t.get_origin(target_tp)
@@ -189,8 +211,67 @@ def get_input_dict(fn) -> dict[str, InputTyping]:
     return inputs_dict
 
 
+def _deserialize_value(
+    data: t.Any,
+    tp: Type,
+    attachments: t.MutableMapping[str, bytes],
+):
+    """Deserialize a value described by ``Type`` recursively.
+
+    Union alternatives are intentionally attempted in declaration order,
+    matching Pydantic's ``left_to_right`` union mode.
+    """
+    if is_union_type(tp.tp):
+        errors = []
+        for alternative in tp.args or []:
+            try:
+                return _deserialize_value(data, alternative, attachments)
+            except Exception as error:
+                errors.append(error)
+
+        alternatives = ', '.join(arg.name for arg in tp.args or [])
+        details = '; '.join(str(error) for error in errors)
+        raise TypeError(
+            f'value does not match any type in Union[{alternatives}]'
+            + (f': {details}' if details else '')
+        ) from (errors[-1] if errors else None)
+
+    if tp.tp is type(None):
+        if data is None:
+            return None
+        raise TypeError('value is not None')
+
+    if tp.tp in DESERIALIZERS:
+        return DESERIALIZERS[tp.tp](data, attachments)
+
+    if tp.tp is list:
+        if type(data) is not list:
+            raise TypeError('input type is not list')
+        if not tp.args:
+            return data
+        return [_deserialize_value(item, tp.args[0], attachments) for item in data]
+
+    if tp.tp is set:
+        if type(data) not in (list, set):
+            raise TypeError('input type is not list or set')
+        if not tp.args:
+            return set(data)
+        return {
+            _deserialize_value(item, tp.args[0], attachments)
+            for item in data
+        }
+
+    if tp.tp is bytes:
+        return attachments[data['$attachment']]
+
+    if inspect.isclass(tp.tp) and issubclass(tp.tp, pydantic.BaseModel):
+        return tp.tp.model_validate(data, context={'attachments': attachments})
+
+    raise RuntimeError(f'no handle for type {tp.tp}')
+
+
 def handle_arg(data: dict, tp: Type, attachments: t.MutableMapping[str, bytes]):
-    return DESERIALIZERS[tp.tp](data, attachments)
+    return _deserialize_value(data, tp, attachments)
 
 
 def handle_args(data: dict, inputs: dict[str, InputTyping], attachments: t.MutableMapping[str, dict], ctx: dict = {}):
@@ -217,21 +298,9 @@ def handle_args(data: dict, inputs: dict[str, InputTyping], attachments: t.Mutab
             raise KeyError(f'argument {name} does not present in inputs')
         raw_value = data[name]
 
-        source_tp = t.get_origin(input.source_tp) if t.get_origin(input.source_tp) is not None else input.source_tp
-
-        if source_tp in DESERIALIZERS:
-            value = DESERIALIZERS[source_tp](raw_value, attachments)
-        elif issubclass(input.source_tp, pydantic.BaseModel):
-            context = { "attachments": attachments }
-            value = input.source_tp.model_validate(raw_value, context=context)
-        elif input.source_tp is list:
-            if type(raw_value) is not list:
-                raise TypeError('input type is not list')
-            value = [handle_arg(rv, input.args[0], attachments) for rv in raw_value]
-        elif input.source_tp is bytes:
-            value = attachments[data[name]["$attachment"]]
-        else:
-            raise RuntimeError(f'no handle for type {input.source_tp}')
+        source_tp = input.source_tp
+        source_type = Type(name=input.name, tp=source_tp, args=input.args)
+        value = _deserialize_value(raw_value, source_type, attachments)
 
         if input.source_tp is not input.target_tp:
             value = TYPE_CONVERTERS[(input.source_tp, input.target_tp)](value)
@@ -273,6 +342,13 @@ def handle_args(data: dict, inputs: dict[str, InputTyping], attachments: t.Mutab
 
 
 def handle_tp(tp: t.Any) -> Type:
+    if is_union_type(tp):
+        return Type(
+            name='union',
+            tp=tp,
+            args=[handle_tp(arg) for arg in t.get_args(tp)],
+        )
+
     args = t.get_args(tp)
     orig = t.get_origin(tp) if args else tp
 
@@ -314,4 +390,3 @@ def get_output_dict(fn):
         return {}
     else:
         return {}
-
